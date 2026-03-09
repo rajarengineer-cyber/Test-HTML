@@ -389,6 +389,143 @@ function exportCSV(){
   a.click();
 }
 
+// ── BACKUP & RESTORE ────────────────────────────────────────────
+function backupData(){
+  const json=JSON.stringify(state.data);
+  const encoded=btoa(unescape(encodeURIComponent(json)));
+  document.getElementById("backupOutput").value=encoded;
+  document.getElementById("backupSection").style.display="block";
+  showToast("✅ Backup code generated! Copy and save it.");
+}
+
+function copyBackup(){
+  const el=document.getElementById("backupOutput");
+  el.select();
+  el.setSelectionRange(0,99999);
+  try{
+    document.execCommand("copy");
+    showToast("✅ Backup code copied to clipboard!");
+  }catch(e){
+    showToast("Long press the text box to copy manually");
+  }
+}
+
+function restoreData(){
+  const code=document.getElementById("restoreInput").value.trim();
+  if(!code){ showToast("⚠ Please paste your backup code first"); return; }
+  try{
+    const json=decodeURIComponent(escape(atob(code)));
+    const parsed=JSON.parse(json);
+    state.data={...state.data,...parsed};
+    saveData();
+    showToast("✅ Data restored! Your previous logs are back.");
+    render();
+  }catch(e){
+    showToast("❌ Invalid backup code. Please check and try again.");
+  }
+}
+
+// ── SMART INPUT HANDLERS (keyboard stays open — no full re-render) ──
+let searchDebounce;
+function handleSearchInput(val){
+  state.searchQuery=val;
+  const cb=document.getElementById("searchClearBtn");
+  if(cb) cb.style.display=val?"inline":"none";
+  clearTimeout(searchDebounce);
+  searchDebounce=setTimeout(()=>renderSearchResults(), 80);
+}
+
+function clearSearch(){
+  state.searchQuery="";
+  const inp=document.getElementById("searchInp");
+  if(inp){inp.value="";inp.focus();}
+  const cb=document.getElementById("searchClearBtn");
+  if(cb) cb.style.display="none";
+  renderSearchResults();
+}
+
+function handleHungryInput(val){
+  state.hungryQuery=val;
+  renderHungryResults();
+}
+
+function renderSearchResults(){
+  const el=document.getElementById("searchResults");
+  if(!el) return;
+  const results=searchFoods(state.searchQuery);
+  if(state.searchQuery&&results.length===0){
+    el.innerHTML=`<div style="text-align:center;padding:16px;color:#446070;font-size:12px">No results found. Try a different spelling.</div>`;
+    return;
+  }
+  el.innerHTML=results.map(f=>{
+    const qty=state.qtyMap[f.id]||1;
+    const sKcal=Math.round(f.kcal*qty);
+    const sWt=Math.round(f.weight*qty);
+    const sP=f.protein?+(f.protein*qty).toFixed(1):null;
+    const sC=f.carbs?+(f.carbs*qty).toFixed(1):null;
+    const sF=f.fat?+(f.fat*qty).toFixed(1):null;
+    return `
+    <div class="result-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px">
+        <div style="flex:1">
+          <div class="rname">${f.name}</div>
+          <div class="rmeta">Per serving: ${f.qty} · <span style="color:#f59e0b;font-weight:700">${sWt}${f.unit}</span></div>
+          ${sP!==null?`<div class="rmacro">Protein ${sP}g · Carbs ${sC}g · Fat ${sF}g</div>`:""}
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:10px">
+          <div style="font-size:18px;font-weight:800;color:#00bfa5">${sKcal}</div>
+          <div style="font-size:10px;color:#78a8b8">kcal</div>
+        </div>
+      </div>
+      <div class="add-row">
+        <div class="qty-ctrl">
+          <button onclick="changeQty('${f.id}',-0.5)">−</button>
+          <span id="qty_${f.id}">${qty}×</span>
+          <button onclick="changeQty('${f.id}',0.5)">+</button>
+        </div>
+        <select class="inp" style="flex:1;font-size:11px;padding:5px 8px" onchange="state.selectedSlot=this.value">
+          ${MEAL_SLOTS.map(s=>`<option value="${s.key}"${state.selectedSlot===s.key?" selected":""}>${s.emoji} ${s.label}</option>`).join("")}
+        </select>
+        <button class="btn btn-teal" style="padding:6px 12px;font-size:12px;white-space:nowrap"
+          onclick="addFood({id:'${f.id}',name:'${f.name}',qty:'${f.qty}',weight:${f.weight},unit:'${f.unit}',kcal:${f.kcal},protein:${f.protein||null},carbs:${f.carbs||null},fat:${f.fat||null}},'${state.selectedSlot}',${qty})">
+          + Add
+        </button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function changeQty(foodId, delta){
+  const cur=state.qtyMap[foodId]||1;
+  state.qtyMap[foodId]=Math.max(0.5,+(cur+delta).toFixed(1));
+  renderSearchResults();
+}
+
+function renderHungryResults(){
+  const el=document.getElementById("hungryResults");
+  if(!el) return;
+  const filtered=HUNGRY_SNACKS.filter(s=>!state.hungryQuery||
+    s.name.toLowerCase().includes(state.hungryQuery.toLowerCase())||
+    s.tip.toLowerCase().includes(state.hungryQuery.toLowerCase()));
+  el.innerHTML=filtered.map(s=>`
+    <div class="hungry-item">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700">${s.name}</div>
+        <div style="font-size:11px;color:#78a8b8">${s.qty} · <span style="color:#f59e0b">${s.wt}</span></div>
+        <div style="font-size:10px;color:#80cbc4;margin-top:1px">💡 ${s.tip}</div>
+      </div>
+      <div style="text-align:center;flex-shrink:0;margin-right:8px">
+        <div style="font-size:16px;font-weight:800;color:#00bfa5">${s.kcal}</div>
+        <div style="font-size:9px;color:#446070">kcal</div>
+      </div>
+      <button class="btn btn-purple" style="font-size:11px;padding:5px 9px"
+        onclick="addFood({id:'${s.id}',name:'${s.name}',qty:'${s.qty}',weight:parseInt('${s.wt}')||0,unit:'${s.wt.includes('ml')?'ml':'g'}',kcal:${s.kcal},protein:null,carbs:null,fat:null},'snack',1)">
+        + Add
+      </button>
+    </div>
+  `).join("");
+}
+
 // ── RENDER ────────────────────────────────────────────────────────
 function render(){
   const today=getToday();
@@ -543,25 +680,13 @@ function render(){
       ${state.showHungry?`
       <div style="margin-top:12px">
         <div style="font-size:11px;color:#78a8b8;margin-bottom:8px">Best low-calorie options — tap + Add to log:</div>
-        <input class="inp" placeholder="Search snack…" value="${state.hungryQuery}" oninput="state.hungryQuery=this.value;render()" style="margin-bottom:10px">
-        ${HUNGRY_SNACKS.filter(s=>!state.hungryQuery||s.name.toLowerCase().includes(state.hungryQuery.toLowerCase())||s.tip.toLowerCase().includes(state.hungryQuery.toLowerCase())).map(s=>`
-          <div class="hungry-item">
-            <div style="flex:1">
-              <div style="font-size:13px;font-weight:700">${s.name}</div>
-              <div style="font-size:11px;color:#78a8b8">${s.qty} · <span style="color:#f59e0b">${s.wt}</span></div>
-              <div style="font-size:10px;color:#80cbc4;margin-top:1px">💡 ${s.tip}</div>
-            </div>
-            <div style="text-align:center;flex-shrink:0;margin-right:8px">
-              <div style="font-size:16px;font-weight:800;color:#00bfa5">${s.kcal}</div>
-              <div style="font-size:9px;color:#446070">kcal</div>
-            </div>
-            <button class="btn btn-purple" style="font-size:11px;padding:5px 9px" onclick="addFood({id:'${s.id}',name:'${s.name}',qty:'${s.qty}',weight:parseInt('${s.wt}')||0,unit:'${s.wt.includes('ml')?'ml':'g'}',kcal:${s.kcal},protein:null,carbs:null,fat:null},'snack',1)">+ Add</button>
-          </div>
-        `).join("")}
+        <input class="inp" id="hungryInp" placeholder="Search snack…" value="${state.hungryQuery}" oninput="handleHungryInput(this.value)" autocomplete="off" autocorrect="off" spellcheck="false" style="margin-bottom:10px">
+        <div id="hungryResults"></div>
       </div>`:""
     }
-    </div>
-
+    </div>`;
+    if(state.showHungry) setTimeout(()=>renderHungryResults(),0);
+    html+=`
     <div style="padding:11px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:10px">
       <div style="font-size:12px;font-weight:700;color:#fca5a5;margin-bottom:4px">⚠️ Night Shift Reminder</div>
       <div style="font-size:11px;color:#78a8b8">Avoid heavy carbs after 10 PM. Never skip the pre-work snack.</div>
@@ -569,15 +694,14 @@ function render(){
   }
 
   else if(state.activeTab==="search"){
-    const results=searchFoods(state.searchQuery);
     html+=`
     <div class="card">
       <div class="card-title">🔍 Food Search</div>
       <div style="font-size:11px;color:#78a8b8;margin-bottom:10px">Search 90+ foods. Adjust qty and meal, then tap + Add.</div>
       <div class="search-wrap" style="margin-bottom:10px">
         <span class="search-icon">🔍</span>
-        <input class="inp search-inp" id="searchInp" placeholder="Type food name… e.g. idli, apple, chicken" value="${state.searchQuery}" oninput="state.searchQuery=this.value;render()">
-        ${state.searchQuery?`<button class="clear-btn" onclick="state.searchQuery='';render()">✕</button>`:""}
+        <input class="inp search-inp" id="searchInp" placeholder="Type food name… e.g. idli, apple, chicken" value="${state.searchQuery}" oninput="handleSearchInput(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button class="clear-btn" id="searchClearBtn" onclick="clearSearch()" style="display:${state.searchQuery?'inline':'none'}">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <span style="font-size:11px;color:#78a8b8;flex-shrink:0">Add to:</span>
@@ -593,44 +717,9 @@ function render(){
           `).join("")}
         </div>
       `:""}
-      ${state.searchQuery&&results.length===0?`<div style="text-align:center;padding:16px;color:#446070;font-size:12px">No results found. Try a different spelling.</div>`:""}
-      ${results.map(f=>{
-        const qty=state.qtyMap[f.id]||1;
-        const sKcal=Math.round(f.kcal*qty);
-        const sWt=Math.round(f.weight*qty);
-        const sP=f.protein?+(f.protein*qty).toFixed(1):null;
-        const sC=f.carbs?+(f.carbs*qty).toFixed(1):null;
-        const sF=f.fat?+(f.fat*qty).toFixed(1):null;
-        return `
-        <div class="result-card">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px">
-            <div style="flex:1">
-              <div class="rname">${f.name}</div>
-              <div class="rmeta">Per serving: ${f.qty} · <span style="color:#f59e0b;font-weight:700">${sWt}${f.unit}</span></div>
-              ${sP!==null?`<div class="rmacro">Protein ${sP}g · Carbs ${sC}g · Fat ${sF}g</div>`:""}
-            </div>
-            <div style="text-align:right;flex-shrink:0;margin-left:10px">
-              <div style="font-size:18px;font-weight:800;color:#00bfa5">${sKcal}</div>
-              <div style="font-size:10px;color:#78a8b8">kcal</div>
-            </div>
-          </div>
-          <div class="add-row">
-            <div class="qty-ctrl">
-              <button onclick="state.qtyMap['${f.id}']=Math.max(0.5,+((${qty}-0.5).toFixed(1)));render()">−</button>
-              <span>${qty}×</span>
-              <button onclick="state.qtyMap['${f.id}']=+((${qty}+0.5).toFixed(1));render()">+</button>
-            </div>
-            <select class="inp" style="flex:1;font-size:11px;padding:5px 8px" onchange="state.selectedSlot=this.value">
-              ${MEAL_SLOTS.map(s=>`<option value="${s.key}"${state.selectedSlot===s.key?" selected":""}>${s.emoji} ${s.label}</option>`).join("")}
-            </select>
-            <button class="btn btn-teal" style="padding:6px 12px;font-size:12px;white-space:nowrap"
-              onclick="addFood({id:'${f.id}',name:'${f.name}',qty:'${f.qty}',weight:${f.weight},unit:'${f.unit}',kcal:${f.kcal},protein:${f.protein||null},carbs:${f.carbs||null},fat:${f.fat||null}},'${state.selectedSlot}',${qty})">
-              + Add
-            </button>
-          </div>
-        </div>`;
-      }).join("")}
+      <div id="searchResults"></div>
     </div>`;
+    setTimeout(()=>renderSearchResults(), 0);
   }
 
   else if(state.activeTab==="exercise"){
@@ -728,81 +817,104 @@ function render(){
       `).join("")}
     </div>
 
-    <div class="card">
-      <div class="card-title">📥 Export Logs</div>
-      <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Download all daily food, exercise, water and weight logs as a CSV file. Open in Excel or Google Sheets.</div>
-      <button class="btn btn-green btn-full" onclick="exportCSV()">📥 Download CSV Log</button>
-      <div style="font-size:10px;color:#2d4a5a;margin-top:7px;text-align:center">Includes all dates · food · calories · macros · water · exercise · weight</div>
-    </div>`;
-  }
+    <div class="card" style="border:1px solid rgba(0,191,165,.2);background:rgba(0,191,165,.04)">
+      <div class="card-title" style="color:#00bfa5">💾 Backup Your Logs</div>
+      <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Generate a backup code and save it in your Notes app. Use it to restore your data anytime on any device.</div>
+      <button class="btn btn-teal btn-full" style="margin-bottom:8px" onclick="backupData()">💾 Generate Backup Code</button>
+      <div id="backupSection" style="display:none">
+        <textarea id="backupOutput" class="inp" rows="3" style="font-size:10px;font-family:monospace;margin-bottom:6px;resize:none" readonly></textarea>
 
-  else if(state.activeTab==="tips"){
-    const DOS=[
-      ["🕘 Stick to meal timings","Eat at the same time every day. Your body's clock controls fat burning — consistency matters more than perfection."],
-      ["🥗 Eat protein every meal","Protein keeps you full longer and protects muscle. Include egg, dal, curd, chicken, or fish in at least 3 meals."],
-      ["💧 Drink water before meals","Drink 1 glass of water 15 min before eating. Reduces hunger and prevents overeating."],
-      ["🌾 Choose complex carbs","Prefer brown rice, ragi, oats, and whole wheat over white rice and maida. They digest slowly and keep energy steady."],
-      ["🥬 Fill half plate with veggies","Vegetables add volume with very few calories. You eat more, feel full, but consume less kcal."],
-      ["🚶 Move after waking up","Walk or stretch for 10–20 min after waking at 9 AM. Kickstarts metabolism before breakfast."],
-      ["😴 Sleep by 3 AM sharp","Sleep deprivation increases hunger hormones. Getting full 6 hours improves fat loss significantly."],
-      ["📊 Log every meal here","Tracking is the #1 habit of successful weight loss. Even logging for 3 days creates awareness that changes behaviour."],
-      ["🍋 Start day with warm water","Warm water + lemon on empty stomach improves digestion and reduces bloating."],
-      ["🧘 Manage stress","High stress = high cortisol = belly fat storage. Even 10 min of deep breathing helps."],
-    ];
-    const DONTS=[
-      ["🚫 Skip meals","Skipping meals — especially breakfast — slows metabolism and causes overeating later. Never skip pre-work snack."],
-      ["🍟 Deep fried foods at night","Parotta, fried chicken, samosa after 9 PM is the #1 cause of weight gain on night shift. Digestion slows at night."],
-      ["🧃 Sugary drinks","Juice, soft drinks, sweetened lassi add 150–300 empty kcal with no nutrition. Drink water, buttermilk, or green tea instead."],
-      ["🍚 Huge rice portions","More than 1.5 cups cooked rice per meal is too much. Use a smaller plate — it tricks the brain into feeling satisfied."],
-      ["🌙 Heavy carbs after 10 PM","Bread, rice, parotta late at night gets stored directly as fat. Stick to protein + light snacks after 10 PM."],
-      ["📱 Eating while watching phone","Distracted eating causes you to eat 25–30% more without realising. Eat mindfully, chew slowly."],
-      ["⚡ Skipping sleep for food","Staying awake past 3 AM and eating is one of the worst habits for night shift weight gain. Sleep is non-negotiable."],
-      ["🍬 Stress/boredom snacking","Night shift boredom leads to snacking. Drink water or green tea first. Wait 10 minutes — the craving usually passes."],
-      ["🏋️ Exercising on empty stomach","Don't exercise without eating anything. Have a small snack (banana, nuts) 20 min before workout."],
-      ["📉 Expecting fast results","Healthy weight loss is 0.3–0.5 kg/week. Slow loss = fat loss. Fast loss = muscle loss. Trust the process."],
-    ];
-    const NIGHT=[
-      ["💡 Your biggest enemy is fatigue eating","When tired, the brain craves sugar and carbs. Keep roasted chana, boiled eggs, or fruits ready at work to avoid vending machine temptations."],
-      ["🕐 Your 'night' is your day","Don't compare yourself to people on day schedules. Follow the meal plan consistently and your metabolism will adapt."],
-      ["🌅 Blackout curtains for sleep","Poor sleep = poor weight loss. Use blackout curtains, phone on DND, sleep by 3 AM. 6 hours of quality sleep beats 8 hours of broken sleep."],
-      ["🥗 Meal prep on your day off","Prepare boiled eggs, cut fruits, roasted chana before your shift week. This removes all excuses for bad food choices."],
-      ["☕ Limit caffeine after midnight","Tea/coffee after 12 AM disrupts sleep quality at 3 AM. Switch to warm water or herbal tea for the last 2 hours of your shift."],
-      ["🏃 Best exercise time: 10–11 AM","After waking and breakfast, your energy is highest. Even 20 minutes of brisk walking at this time burns more fat."],
-    ];
+```
+    <button class="btn btn-green btn-full" onclick="copyBackup()">📋 Copy Backup Code</button>
+    <div style="font-size:10px;color:#446070;margin-top:6px;text-align:center">📌 Save this in Notes app. Use Restore below to bring logs back anytime.</div>
+  </div>
+</div>
+<div class="card" style="border:1px solid rgba(139,92,246,.2);background:rgba(139,92,246,.04)">
+  <div class="card-title" style="color:#c4b5fd">🔄 Restore Previous Logs</div>
+  <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Paste your saved backup code below to restore all previous daily logs.</div>
+  <textarea id="restoreInput" class="inp" rows="3" style="font-size:10px;font-family:monospace;margin-bottom:8px;resize:none" placeholder="Paste your backup code here…"></textarea>
+  <button class="btn btn-purple btn-full" onclick="restoreData()">🔄 Restore My Logs</button>
+</div>
+<div class="card">
+  <div class="card-title">📥 Export to Excel</div>
+  <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Download all daily food, exercise, water and weight logs as a CSV file. Open in Excel or Google Sheets.</div>
+  <button class="btn btn-green btn-full" onclick="exportCSV()">📥 Download CSV Log</button>
+  <div style="font-size:10px;color:#2d4a5a;margin-top:7px;text-align:center">Includes all dates · food · calories · macros · water · exercise · weight</div>
+</div>`;
+```
 
-    html+=`
-    <div class="card" style="border:1px solid rgba(0,191,165,.25);background:rgba(0,191,165,.04)">
-      <div class="card-title" style="color:#00bfa5">✅ Do's — Follow These Daily</div>
-      ${DOS.map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
-    </div>
-    <div class="card" style="border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.04)">
-      <div class="card-title" style="color:#f87171">❌ Don'ts — Avoid These</div>
-      ${DONTS.map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
-    </div>
-    <div class="card" style="border:1px solid rgba(250,204,21,.25);background:rgba(250,204,21,.04)">
-      <div class="card-title" style="color:#fde68a">🌙 Night Shift Specific Tips</div>
-      ${NIGHT.map(([t,d])=>`<div class="tip-item"><div class="tip-title" style="color:#fde68a">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
-    </div>
-    <div class="card" style="border:1px solid rgba(139,92,246,.25);background:rgba(139,92,246,.04)">
-      <div class="card-title" style="color:#c4b5fd">🎯 Weekly Targets</div>
-      ${[["⚖️ Weigh yourself","Once a week, same time, same conditions (morning after waking). Daily weight fluctuates — weekly trend is what matters."],["🔥 Stay within 1600–1800 kcal","Hit your calorie target 5 out of 7 days. 2 flex days are okay — just don't go above 2100 kcal."],["🏃 Exercise 4–5 days","Aim for 4 sessions per week minimum. Even a 20 min walk counts. Consistency beats intensity."],["💧 2.5 litres water daily","Log 10 glasses every day in the tracker. Dehydration is often mistaken for hunger on night shift."],["📝 Log meals daily","Log at least 5 out of 7 days. The act of logging alone reduces calorie intake by 10–15%."]].map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
-    </div>`;
-  }
+}
 
-  document.getElementById("content").innerHTML=html;
+else if(state.activeTab===“tips”){
+const DOS=[
+[“🕘 Stick to meal timings”,“Eat at the same time every day. Your body’s clock controls fat burning — consistency matters more than perfection.”],
+[“🥗 Eat protein every meal”,“Protein keeps you full longer and protects muscle. Include egg, dal, curd, chicken, or fish in at least 3 meals.”],
+[“💧 Drink water before meals”,“Drink 1 glass of water 15 min before eating. Reduces hunger and prevents overeating.”],
+[“🌾 Choose complex carbs”,“Prefer brown rice, ragi, oats, and whole wheat over white rice and maida. They digest slowly and keep energy steady.”],
+[“🥬 Fill half plate with veggies”,“Vegetables add volume with very few calories. You eat more, feel full, but consume less kcal.”],
+[“🚶 Move after waking up”,“Walk or stretch for 10–20 min after waking at 9 AM. Kickstarts metabolism before breakfast.”],
+[“😴 Sleep by 3 AM sharp”,“Sleep deprivation increases hunger hormones. Getting full 6 hours improves fat loss significantly.”],
+[“📊 Log every meal here”,“Tracking is the #1 habit of successful weight loss. Even logging for 3 days creates awareness that changes behaviour.”],
+[“🍋 Start day with warm water”,“Warm water + lemon on empty stomach improves digestion and reduces bloating.”],
+[“🧘 Manage stress”,“High stress = high cortisol = belly fat storage. Even 10 min of deep breathing helps.”],
+];
+const DONTS=[
+[“🚫 Skip meals”,“Skipping meals — especially breakfast — slows metabolism and causes overeating later. Never skip pre-work snack.”],
+[“🍟 Deep fried foods at night”,“Parotta, fried chicken, samosa after 9 PM is the #1 cause of weight gain on night shift. Digestion slows at night.”],
+[“🧃 Sugary drinks”,“Juice, soft drinks, sweetened lassi add 150–300 empty kcal with no nutrition. Drink water, buttermilk, or green tea instead.”],
+[“🍚 Huge rice portions”,“More than 1.5 cups cooked rice per meal is too much. Use a smaller plate — it tricks the brain into feeling satisfied.”],
+[“🌙 Heavy carbs after 10 PM”,“Bread, rice, parotta late at night gets stored directly as fat. Stick to protein + light snacks after 10 PM.”],
+[“📱 Eating while watching phone”,“Distracted eating causes you to eat 25–30% more without realising. Eat mindfully, chew slowly.”],
+[“⚡ Skipping sleep for food”,“Staying awake past 3 AM and eating is one of the worst habits for night shift weight gain. Sleep is non-negotiable.”],
+[“🍬 Stress/boredom snacking”,“Night shift boredom leads to snacking. Drink water or green tea first. Wait 10 minutes — the craving usually passes.”],
+[“🏋️ Exercising on empty stomach”,“Don’t exercise without eating anything. Have a small snack (banana, nuts) 20 min before workout.”],
+[“📉 Expecting fast results”,“Healthy weight loss is 0.3–0.5 kg/week. Slow loss = fat loss. Fast loss = muscle loss. Trust the process.”],
+];
+const NIGHT=[
+[“💡 Your biggest enemy is fatigue eating”,“When tired, the brain craves sugar and carbs. Keep roasted chana, boiled eggs, or fruits ready at work to avoid vending machine temptations.”],
+[“🕐 Your ‘night’ is your day”,“Don’t compare yourself to people on day schedules. Follow the meal plan consistently and your metabolism will adapt.”],
+[“🌅 Blackout curtains for sleep”,“Poor sleep = poor weight loss. Use blackout curtains, phone on DND, sleep by 3 AM. 6 hours of quality sleep beats 8 hours of broken sleep.”],
+[“🥗 Meal prep on your day off”,“Prepare boiled eggs, cut fruits, roasted chana before your shift week. This removes all excuses for bad food choices.”],
+[“☕ Limit caffeine after midnight”,“Tea/coffee after 12 AM disrupts sleep quality at 3 AM. Switch to warm water or herbal tea for the last 2 hours of your shift.”],
+[“🏃 Best exercise time: 10–11 AM”,“After waking and breakfast, your energy is highest. Even 20 minutes of brisk walking at this time burns more fat.”],
+];
+
+```
+html+=`
+<div class="card" style="border:1px solid rgba(0,191,165,.25);background:rgba(0,191,165,.04)">
+  <div class="card-title" style="color:#00bfa5">✅ Do's — Follow These Daily</div>
+  ${DOS.map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
+</div>
+<div class="card" style="border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.04)">
+  <div class="card-title" style="color:#f87171">❌ Don'ts — Avoid These</div>
+  ${DONTS.map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
+</div>
+<div class="card" style="border:1px solid rgba(250,204,21,.25);background:rgba(250,204,21,.04)">
+  <div class="card-title" style="color:#fde68a">🌙 Night Shift Specific Tips</div>
+  ${NIGHT.map(([t,d])=>`<div class="tip-item"><div class="tip-title" style="color:#fde68a">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
+</div>
+<div class="card" style="border:1px solid rgba(139,92,246,.25);background:rgba(139,92,246,.04)">
+  <div class="card-title" style="color:#c4b5fd">🎯 Weekly Targets</div>
+  ${[["⚖️ Weigh yourself","Once a week, same time, same conditions (morning after waking). Daily weight fluctuates — weekly trend is what matters."],["🔥 Stay within 1600–1800 kcal","Hit your calorie target 5 out of 7 days. 2 flex days are okay — just don't go above 2100 kcal."],["🏃 Exercise 4–5 days","Aim for 4 sessions per week minimum. Even a 20 min walk counts. Consistency beats intensity."],["💧 2.5 litres water daily","Log 10 glasses every day in the tracker. Dehydration is often mistaken for hunger on night shift."],["📝 Log meals daily","Log at least 5 out of 7 days. The act of logging alone reduces calorie intake by 10–15%."]].map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
+</div>`;
+```
+
+}
+
+document.getElementById(“content”).innerHTML=html;
 }
 
 function saveNote(){
-  const v=document.getElementById("noteInp")?.value||"";
-  updateToday({note:v});
-  state.noteInput="";
-  render();
+const v=document.getElementById(“noteInp”)?.value||””;
+updateToday({note:v});
+state.noteInput=””;
+render();
 }
 
 function switchTab(tab){
-  state.activeTab=tab;
-  render();
-  window.scrollTo(0,0);
+state.activeTab=tab;
+render();
+window.scrollTo(0,0);
 }
 
 // Init
