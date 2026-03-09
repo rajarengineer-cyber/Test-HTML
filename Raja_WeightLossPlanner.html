@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🌿 NightShift Tracker</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:#0a1628;color:#e8f4f8;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding-bottom:40px;}
+input,select,button{font-family:inherit;outline:none;}
+input::placeholder{color:#446070;}
+select option{background:#0d2137;color:#e8f4f8;}
+.header{background:linear-gradient(90deg,#006d77,#008080);padding:16px 16px 12px;box-shadow:0 4px 24px rgba(0,109,119,.4);}
+.header-row{display:flex;justify-content:space-between;align-items:center;}
+.header h1{font-size:19px;font-weight:800;letter-spacing:1px;color:#fff;}
+.header p{font-size:11px;color:#b2dfdb;margin-top:2px;}
+.wt-num{font-size:20px;font-weight:800;color:#80cbc4;text-align:right;}
+.tabs{display:flex;gap:3px;padding:10px 10px 0;background:#0d2137;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab-btn{padding:7px 11px;border-radius:8px 8px 0 0;border:none;cursor:pointer;font-size:11px;font-weight:500;white-space:nowrap;background:transparent;color:#78a8b8;transition:all .2s;}
+.tab-btn.active{background:#006d77;color:#fff;font-weight:700;}
+.content{padding:12px;}
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:13px;margin-bottom:11px;}
+.card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;color:#80cbc4;text-transform:uppercase;margin-bottom:9px;}
+.stat-row{display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;}
+.stat{flex:1;min-width:70px;border-radius:12px;padding:10px 7px;text-align:center;}
+.stat-num{font-size:20px;font-weight:800;line-height:1;}
+.stat-lbl{font-size:10px;color:#78a8b8;margin-top:3px;}
+.stat-sub{font-size:9px;color:#78a8b8;margin-top:1px;}
+.pbar{height:6px;border-radius:4px;background:#1a3545;overflow:hidden;margin-top:4px;}
+.pfill{height:100%;border-radius:4px;transition:width .5s;}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;color:#fff;}
+.btn-teal{background:linear-gradient(135deg,#006d77,#00897b);}
+.btn-purple{background:linear-gradient(135deg,#7c3aed,#6d28d9);}
+.btn-green{background:linear-gradient(135deg,#059669,#047857);}
+.btn-gray{background:#446070;}
+.btn-full{width:100%;padding:11px;font-size:13px;}
+.inp{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#e8f4f8;padding:8px 11px;font-size:13px;width:100%;}
+.water-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
+.water-btn{width:28px;height:28px;border-radius:6px;border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.meal-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+.slot-card{border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);}
+.food-item{display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(255,255,255,.04);border-radius:8px;margin-top:5px;}
+.food-item .fname{font-size:12px;font-weight:600;}
+.food-item .fmeta{font-size:11px;color:#78a8b8;}
+.food-item .fmacro{font-size:10px;color:#446070;margin-top:1px;}
+.food-item .fkcal{font-size:12px;font-weight:700;color:#f59e0b;flex-shrink:0;}
+.remove-btn{background:none;border:none;color:#446070;cursor:pointer;font-size:14px;padding:0 2px;}
+.result-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+.result-card .rname{font-size:13px;font-weight:700;}
+.result-card .rmeta{font-size:11px;color:#78a8b8;margin-top:2px;}
+.result-card .rmacro{font-size:10px;color:#446070;margin-top:2px;}
+.qty-ctrl{display:flex;align-items:center;gap:4px;background:#1a3545;border-radius:8px;padding:3px 8px;}
+.qty-ctrl button{background:none;border:none;color:#80cbc4;cursor:pointer;font-size:18px;line-height:1;padding:0 2px;}
+.qty-ctrl span{font-size:13px;font-weight:700;min-width:26px;text-align:center;}
+.add-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:7px;}
+.chip{padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#78a8b8;font-size:11px;cursor:pointer;white-space:nowrap;}
+.chip.active{border-color:#006d77;background:rgba(0,109,119,.2);color:#80cbc4;font-weight:700;}
+.ex-grid{display:flex;gap:7px;flex-wrap:wrap;}
+.ex-btn{flex:1;min-width:80px;padding:9px 6px;border-radius:10px;border:1px solid rgba(255,255,255,.08);cursor:pointer;background:rgba(255,255,255,.05);color:#78a8b8;font-size:11px;font-weight:600;text-align:center;transition:all .2s;}
+.ex-btn.active{background:linear-gradient(135deg,#006d77,#00897b);border-color:#006d77;color:#fff;}
+.week-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+.bar-chart{display:flex;align-items:flex-end;gap:4px;height:80px;margin-bottom:6px;}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.bar-val{font-size:9px;color:#80cbc4;}
+.bar-track{width:100%;background:#1a3545;border-radius:4px;height:55px;display:flex;align-items:flex-end;}
+.bar-fill{width:100%;border-radius:4px;transition:height .4s;}
+.bar-day{font-size:9px;color:#446070;}
+.dot-row{display:flex;gap:3px;}
+.dot{width:7px;height:7px;border-radius:50%;}
+.tip-item{padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+.tip-title{font-size:13px;font-weight:700;color:#e8f4f8;margin-bottom:2px;}
+.tip-desc{font-size:11px;color:#78a8b8;line-height:1.5;}
+.hungry-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,.04);border-radius:10px;margin-bottom:6px;border:1px solid rgba(255,255,255,.06);}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#006d77;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,109,119,.5);z-index:1000;white-space:nowrap;display:none;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:999;display:none;}
+.modal-box{background:#0d2137;border:1px solid #006d7755;border-radius:16px;padding:22px;width:290px;}
+.search-wrap{position:relative;}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;}
+.search-inp{padding-left:32px;}
+.clear-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#446070;cursor:pointer;font-size:15px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <div>
+      <h1>🌿 NightShift Tracker</h1>
+      <p id="hdr-date">Loading... · Shift 5:30 PM–2:30 AM</p>
+    </div>
+    <div style="text-align:right">
+      <div class="wt-num" id="hdr-weight">—</div>
+      <button class="btn btn-teal" style="font-size:10px;padding:3px 9px;margin-top:3px" onclick="openWeightModal()">Log Weight</button>
+    </div>
+  </div>
+</div>
+
+<div class="tabs" id="tabs"></div>
+<div class="content" id="content"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Weight Modal -->
+
+<div class="modal-overlay" id="weightModal" onclick="closeWeightModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div style="font-size:15px;font-weight:700;margin-bottom:11px;color:#80cbc4">⚖️ Log Today's Weight</div>
+    <input class="inp" type="number" id="weightInp" placeholder="e.g. 81.5" step="0.1" style="margin-bottom:11px">
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-teal" style="flex:1;padding:9px" onclick="saveWeight()">Save</button>
+      <button class="btn btn-gray" style="flex:1;padding:9px" onclick="closeWeightModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────
+const STORAGE_KEY = "nightshift_tracker_v2";
+const TARGET_KCAL = 1700;
+const WATER_GLASSES = 10;
+
+const MEAL_SLOTS = [
+  {key:"wakeup",   label:"Wake-Up",       time:"9:00 AM",  emoji:"🌅",defaultKcal:50, minKcal:30, maxKcal:80, color:"#0891b2",tip:"Light start — water + a few almonds only"},
+  {key:"breakfast",label:"Breakfast",     time:"10:00 AM", emoji:"🍽️",defaultKcal:380,minKcal:300,maxKcal:450,color:"#059669",tip:"Biggest meal — include protein + carbs"},
+  {key:"lunch",    label:"Lunch",         time:"2:00 PM",  emoji:"🥘",defaultKcal:475,minKcal:400,maxKcal:550,color:"#d97706",tip:"Rice + sambar + veggie + curd"},
+  {key:"snack",    label:"Pre-Work Snack",time:"4:30 PM",  emoji:"🍌",defaultKcal:165,minKcal:100,maxKcal:200,color:"#7c3aed",tip:"Light fuel before shift — fruit or chana"},
+  {key:"dinner",   label:"Dinner",        time:"9:00 PM",  emoji:"🌙",defaultKcal:400,minKcal:300,maxKcal:450,color:"#be185d",tip:"Keep lighter than lunch"},
+  {key:"latesnack",label:"Late Snack",    time:"12:00 AM", emoji:"🥚",defaultKcal:100,minKcal:50, maxKcal:150,color:"#556070",tip:"Only if hungry. Egg, nuts or green tea."},
+];
+
+const EXERCISES = [
+  {id:"walk",    label:"Brisk Walk",  duration:"20–30 min",emoji:"🚶",kcal:120},
+  {id:"yoga",    label:"Yoga/Stretch",duration:"15 min",   emoji:"🧘",kcal:60},
+  {id:"strength",label:"Strength",   duration:"20 min",   emoji:"💪",kcal:150},
+  {id:"cycling", label:"Cycling",    duration:"30 min",   emoji:"🚴",kcal:200},
+];
+
+const ALL_FOODS = [
+  {id:"idli",name:"Idli",qty:"2 pieces",weight:120,kcal:130,protein:4,carbs:26,fat:1,unit:"g",cat:"breakfast"},
+  {id:"dosa",name:"Dosa (plain)",qty:"1 piece",weight:100,kcal:150,protein:3,carbs:28,fat:3,unit:"g",cat:"breakfast"},
+  {id:"masala_dosa",name:"Masala Dosa",qty:"1 piece",weight:200,kcal:340,protein:7,carbs:55,fat:10,unit:"g",cat:"breakfast"},
+  {id:"upma",name:"Upma",qty:"1 cup",weight:180,kcal:200,protein:5,carbs:35,fat:5,unit:"g",cat:"breakfast"},
+  {id:"chapathi",name:"Chapathi / Roti",qty:"2 pieces",weight:120,kcal:200,protein:6,carbs:38,fat:3,unit:"g",cat:"breakfast"},
+  {id:"poori",name:"Poori",qty:"2 pieces",weight:100,kcal:280,protein:4,carbs:32,fat:14,unit:"g",cat:"breakfast"},
+  {id:"appam",name:"Appam",qty:"2 pieces",weight:120,kcal:190,protein:4,carbs:38,fat:2,unit:"g",cat:"breakfast"},
+  {id:"ragi_koozh",name:"Ragi Koozh",qty:"1 glass",weight:250,kcal:160,protein:4,carbs:32,fat:1,unit:"ml",cat:"breakfast"},
+  {id:"pongal",name:"Ven Pongal",qty:"1 cup",weight:200,kcal:270,protein:7,carbs:42,fat:8,unit:"g",cat:"breakfast"},
+  {id:"puttu",name:"Puttu",qty:"1 cylinder",weight:150,kcal:220,protein:5,carbs:44,fat:2,unit:"g",cat:"breakfast"},
+  {id:"parotta",name:"Parotta",qty:"2 pieces",weight:140,kcal:360,protein:7,carbs:52,fat:14,unit:"g",cat:"breakfast"},
+  {id:"uttapam",name:"Uttapam",qty:"1 piece",weight:130,kcal:175,protein:5,carbs:30,fat:4,unit:"g",cat:"breakfast"},
+  {id:"pesarattu",name:"Pesarattu",qty:"2 pieces",weight:120,kcal:180,protein:8,carbs:28,fat:4,unit:"g",cat:"breakfast"},
+  {id:"aloo_paratha",name:"Aloo Paratha",qty:"1 piece",weight:120,kcal:260,protein:6,carbs:40,fat:9,unit:"g",cat:"breakfast"},
+  {id:"medu_vada",name:"Medu Vada",qty:"2 pieces",weight:100,kcal:250,protein:8,carbs:28,fat:12,unit:"g",cat:"breakfast"},
+  {id:"poha",name:"Poha",qty:"1 cup",weight:180,kcal:200,protein:4,carbs:38,fat:4,unit:"g",cat:"breakfast"},
+  {id:"oats",name:"Oats Porridge",qty:"1 bowl",weight:200,kcal:150,protein:6,carbs:27,fat:3,unit:"g",cat:"breakfast"},
+  {id:"bread_toast",name:"Bread Toast",qty:"2 slices",weight:60,kcal:160,protein:5,carbs:28,fat:4,unit:"g",cat:"breakfast"},
+  {id:"cornflakes",name:"Cornflakes with Milk",qty:"1 bowl",weight:200,kcal:180,protein:6,carbs:36,fat:2,unit:"g",cat:"breakfast"},
+  {id:"sambar",name:"Sambar",qty:"1 cup",weight:200,kcal:80,protein:4,carbs:12,fat:2,unit:"ml",cat:"sides"},
+  {id:"coconut_chutney",name:"Coconut Chutney",qty:"2 tbsp",weight:30,kcal:55,protein:1,carbs:4,fat:4,unit:"g",cat:"sides"},
+  {id:"rasam",name:"Rasam",qty:"1 cup",weight:200,kcal:40,protein:2,carbs:7,fat:1,unit:"ml",cat:"sides"},
+  {id:"curd",name:"Plain Curd",qty:"1 bowl",weight:100,kcal:60,protein:3,carbs:4,fat:3,unit:"g",cat:"sides"},
+  {id:"ghee",name:"Ghee",qty:"1 tsp",weight:5,kcal:45,protein:0,carbs:0,fat:5,unit:"g",cat:"sides"},
+  {id:"papad",name:"Papad (roasted)",qty:"1 piece",weight:10,kcal:35,protein:2,carbs:5,fat:1,unit:"g",cat:"sides"},
+  {id:"rice",name:"Cooked White Rice",qty:"1.5 cups",weight:225,kcal:290,protein:6,carbs:63,fat:1,unit:"g",cat:"lunch"},
+  {id:"brown_rice",name:"Brown Rice",qty:"1.5 cups",weight:225,kcal:260,protein:6,carbs:55,fat:2,unit:"g",cat:"lunch"},
+  {id:"dal",name:"Dal (cooked)",qty:"1 cup",weight:180,kcal:120,protein:8,carbs:20,fat:1,unit:"g",cat:"lunch"},
+  {id:"rajma",name:"Rajma",qty:"1 cup",weight:200,kcal:210,protein:12,carbs:33,fat:4,unit:"g",cat:"lunch"},
+  {id:"chole",name:"Chole",qty:"1 cup",weight:200,kcal:220,protein:11,carbs:35,fat:5,unit:"g",cat:"lunch"},
+  {id:"veg_curry",name:"Vegetable Curry",qty:"1 cup",weight:180,kcal:130,protein:3,carbs:18,fat:5,unit:"g",cat:"lunch"},
+  {id:"palak_paneer",name:"Palak Paneer",qty:"1 cup",weight:200,kcal:260,protein:12,carbs:14,fat:18,unit:"g",cat:"lunch"},
+  {id:"paneer_butter",name:"Paneer Butter Masala",qty:"1 cup",weight:200,kcal:320,protein:14,carbs:16,fat:22,unit:"g",cat:"lunch"},
+  {id:"sambar_rice",name:"Sambar Rice",qty:"1 plate",weight:300,kcal:380,protein:10,carbs:72,fat:5,unit:"g",cat:"lunch"},
+  {id:"curd_rice",name:"Curd Rice",qty:"1 cup",weight:200,kcal:220,protein:6,carbs:38,fat:5,unit:"g",cat:"lunch"},
+  {id:"lemon_rice",name:"Lemon Rice",qty:"1 cup",weight:200,kcal:270,protein:5,carbs:48,fat:7,unit:"g",cat:"lunch"},
+  {id:"biryani_veg",name:"Veg Biryani",qty:"1 plate",weight:300,kcal:400,protein:9,carbs:70,fat:10,unit:"g",cat:"lunch"},
+  {id:"biryani_chicken",name:"Chicken Biryani",qty:"1 plate",weight:350,kcal:520,protein:28,carbs:65,fat:15,unit:"g",cat:"nonveg"},
+  {id:"chicken_curry",name:"Chicken Curry",qty:"1 cup",weight:200,kcal:260,protein:28,carbs:8,fat:13,unit:"g",cat:"nonveg"},
+  {id:"chicken_grill",name:"Grilled Chicken",qty:"100g",weight:100,kcal:165,protein:31,carbs:0,fat:4,unit:"g",cat:"nonveg"},
+  {id:"chicken_tandoori",name:"Tandoori Chicken",qty:"2 pieces",weight:150,kcal:220,protein:32,carbs:5,fat:8,unit:"g",cat:"nonveg"},
+  {id:"fish_curry",name:"Fish Curry",qty:"1 serving",weight:150,kcal:160,protein:20,carbs:5,fat:7,unit:"g",cat:"nonveg"},
+  {id:"fish_fry",name:"Fish Fry",qty:"1 piece",weight:100,kcal:190,protein:22,carbs:6,fat:9,unit:"g",cat:"nonveg"},
+  {id:"prawn_curry",name:"Prawn Curry",qty:"1 serving",weight:150,kcal:175,protein:18,carbs:6,fat:8,unit:"g",cat:"nonveg"},
+  {id:"egg_curry",name:"Egg Curry",qty:"2 eggs",weight:200,kcal:220,protein:14,carbs:8,fat:15,unit:"g",cat:"nonveg"},
+  {id:"boiled_egg",name:"Boiled Egg",qty:"1 egg",weight:50,kcal:70,protein:6,carbs:0,fat:5,unit:"g",cat:"nonveg"},
+  {id:"omelette",name:"Omelette (2 eggs)",qty:"1",weight:100,kcal:150,protein:12,carbs:1,fat:11,unit:"g",cat:"nonveg"},
+  {id:"mutton_curry",name:"Mutton Curry",qty:"1 serving",weight:150,kcal:290,protein:24,carbs:5,fat:19,unit:"g",cat:"nonveg"},
+  {id:"kfc",name:"KFC Fried Chicken",qty:"1 piece",weight:120,kcal:320,protein:22,carbs:14,fat:20,unit:"g",cat:"nonveg"},
+  {id:"shawarma",name:"Chicken Shawarma",qty:"1 wrap",weight:200,kcal:400,protein:25,carbs:40,fat:14,unit:"g",cat:"nonveg"},
+  {id:"banana",name:"Banana",qty:"1 medium",weight:120,kcal:89,protein:1,carbs:23,fat:0,unit:"g",cat:"fruit"},
+  {id:"apple",name:"Apple",qty:"1 medium",weight:150,kcal:78,protein:0,carbs:21,fat:0,unit:"g",cat:"fruit"},
+  {id:"mango",name:"Mango",qty:"1 medium",weight:200,kcal:130,protein:1,carbs:33,fat:1,unit:"g",cat:"fruit"},
+  {id:"guava",name:"Guava",qty:"1 medium",weight:100,kcal:68,protein:3,carbs:14,fat:1,unit:"g",cat:"fruit"},
+  {id:"watermelon",name:"Watermelon",qty:"2 slices",weight:200,kcal:60,protein:1,carbs:15,fat:0,unit:"g",cat:"fruit"},
+  {id:"orange",name:"Orange",qty:"1 medium",weight:130,kcal:60,protein:1,carbs:15,fat:0,unit:"g",cat:"fruit"},
+  {id:"papaya",name:"Papaya",qty:"1 cup",weight:145,kcal:55,protein:1,carbs:14,fat:0,unit:"g",cat:"fruit"},
+  {id:"pomegranate",name:"Pomegranate",qty:"half fruit",weight:100,kcal:83,protein:2,carbs:19,fat:1,unit:"g",cat:"fruit"},
+  {id:"grapes",name:"Grapes",qty:"1 cup",weight:150,kcal:104,protein:1,carbs:27,fat:0,unit:"g",cat:"fruit"},
+  {id:"pineapple",name:"Pineapple",qty:"1 cup",weight:165,kcal:83,protein:1,carbs:22,fat:0,unit:"g",cat:"fruit"},
+  {id:"chikoo",name:"Chikoo / Sapota",qty:"1 medium",weight:100,kcal:83,protein:1,carbs:20,fat:1,unit:"g",cat:"fruit"},
+  {id:"muskmelon",name:"Muskmelon",qty:"1 cup",weight:160,kcal:54,protein:1,carbs:13,fat:0,unit:"g",cat:"fruit"},
+  {id:"custard_apple",name:"Custard Apple",qty:"1 medium",weight:100,kcal:94,protein:2,carbs:24,fat:0,unit:"g",cat:"fruit"},
+  {id:"kiwi",name:"Kiwi",qty:"1 medium",weight:76,kcal:46,protein:1,carbs:11,fat:0,unit:"g",cat:"fruit"},
+  {id:"pear",name:"Pear",qty:"1 medium",weight:178,kcal:101,protein:1,carbs:27,fat:0,unit:"g",cat:"fruit"},
+  {id:"amla",name:"Amla / Gooseberry",qty:"2 pieces",weight:50,kcal:22,protein:1,carbs:5,fat:0,unit:"g",cat:"fruit"},
+  {id:"jackfruit",name:"Jackfruit",qty:"1 cup",weight:165,kcal:157,protein:3,carbs:38,fat:1,unit:"g",cat:"fruit"},
+  {id:"roasted_chana",name:"Roasted Chana",qty:"1 handful",weight:30,kcal:100,protein:6,carbs:15,fat:2,unit:"g",cat:"snack"},
+  {id:"nuts",name:"Mixed Nuts",qty:"10 pieces",weight:15,kcal:90,protein:3,carbs:4,fat:8,unit:"g",cat:"snack"},
+  {id:"almonds",name:"Almonds",qty:"10 pieces",weight:12,kcal:70,protein:3,carbs:2,fat:6,unit:"g",cat:"snack"},
+  {id:"sprouts",name:"Mixed Sprouts",qty:"1 bowl",weight:60,kcal:50,protein:4,carbs:8,fat:0,unit:"g",cat:"snack"},
+  {id:"murukku",name:"Murukku",qty:"3 pieces",weight:30,kcal:150,protein:2,carbs:20,fat:7,unit:"g",cat:"snack"},
+  {id:"samosa",name:"Samosa",qty:"2 pieces",weight:100,kcal:260,protein:5,carbs:32,fat:13,unit:"g",cat:"snack"},
+  {id:"vada_pav",name:"Vada Pav",qty:"1 piece",weight:120,kcal:290,protein:6,carbs:42,fat:10,unit:"g",cat:"snack"},
+  {id:"marie",name:"Marie Biscuit",qty:"4 pieces",weight:28,kcal:120,protein:2,carbs:20,fat:4,unit:"g",cat:"snack"},
+  {id:"peanuts",name:"Peanuts (roasted)",qty:"1 handful",weight:28,kcal:165,protein:7,carbs:5,fat:14,unit:"g",cat:"snack"},
+  {id:"dates",name:"Dates",qty:"3 pieces",weight:30,kcal:83,protein:1,carbs:22,fat:0,unit:"g",cat:"snack"},
+  {id:"buttermilk",name:"Buttermilk",qty:"1 glass",weight:200,kcal:40,protein:3,carbs:4,fat:1,unit:"ml",cat:"drink"},
+  {id:"green_tea",name:"Green Tea",qty:"1 cup",weight:200,kcal:2,protein:0,carbs:0,fat:0,unit:"ml",cat:"drink"},
+  {id:"milk",name:"Whole Milk",qty:"1 glass",weight:250,kcal:150,protein:8,carbs:12,fat:8,unit:"ml",cat:"drink"},
+  {id:"tea",name:"Tea with sugar",qty:"1 cup",weight:150,kcal:55,protein:1,carbs:9,fat:1,unit:"ml",cat:"drink"},
+  {id:"coffee",name:"Coffee with milk",qty:"1 cup",weight:150,kcal:60,protein:2,carbs:9,fat:2,unit:"ml",cat:"drink"},
+  {id:"coconut_water",name:"Coconut Water",qty:"1 glass",weight:240,kcal:45,protein:2,carbs:9,fat:0,unit:"ml",cat:"drink"},
+  {id:"lassi",name:"Mango Lassi",qty:"1 glass",weight:250,kcal:220,protein:5,carbs:38,fat:5,unit:"ml",cat:"drink"},
+  {id:"nimbu_pani",name:"Nimbu Pani",qty:"1 glass",weight:250,kcal:15,protein:0,carbs:4,fat:0,unit:"ml",cat:"drink"},
+  {id:"protein_shake",name:"Whey Protein Shake",qty:"1 scoop",weight:300,kcal:120,protein:24,carbs:5,fat:2,unit:"ml",cat:"drink"},
+  {id:"veg_burger",name:"Veg Burger",qty:"1 burger",weight:180,kcal:350,protein:10,carbs:48,fat:13,unit:"g",cat:"fastfood"},
+  {id:"chicken_burger",name:"Chicken Burger",qty:"1 burger",weight:200,kcal:420,protein:22,carbs:45,fat:17,unit:"g",cat:"fastfood"},
+  {id:"pizza_slice",name:"Pizza (1 slice)",qty:"1 slice",weight:100,kcal:270,protein:12,carbs:33,fat:10,unit:"g",cat:"fastfood"},
+  {id:"fried_rice",name:"Veg Fried Rice",qty:"1 plate",weight:250,kcal:380,protein:8,carbs:65,fat:10,unit:"g",cat:"fastfood"},
+  {id:"maggi",name:"Maggi Noodles",qty:"1 packet",weight:200,kcal:350,protein:7,carbs:55,fat:11,unit:"g",cat:"fastfood"},
+  {id:"gulab_jamun",name:"Gulab Jamun",qty:"2 pieces",weight:80,kcal:190,protein:3,carbs:32,fat:6,unit:"g",cat:"sweet"},
+  {id:"kheer",name:"Kheer",qty:"1 bowl",weight:150,kcal:200,protein:5,carbs:32,fat:6,unit:"g",cat:"sweet"},
+  {id:"ice_cream",name:"Ice Cream",qty:"2 scoops",weight:100,kcal:200,protein:3,carbs:24,fat:10,unit:"g",cat:"sweet"},
+  {id:"chocolate",name:"Dairy Milk Chocolate",qty:"1 bar",weight:40,kcal:210,protein:3,carbs:25,fat:11,unit:"g",cat:"sweet"},
+];
+
+const HUNGRY_SNACKS = [
+  {id:"hs1",name:"Buttermilk",kcal:40,qty:"1 glass",wt:"200ml",tip:"Zero fat, keeps you full"},
+  {id:"hs2",name:"Roasted Chana",kcal:100,qty:"1 handful",wt:"30g",tip:"High protein, slow digesting"},
+  {id:"hs3",name:"Boiled Egg",kcal:70,qty:"1 egg",wt:"50g",tip:"Best protein snack"},
+  {id:"hs4",name:"Apple",kcal:78,qty:"1 medium",wt:"150g",tip:"Fibre keeps hunger away 2+ hrs"},
+  {id:"hs5",name:"Banana",kcal:89,qty:"1 medium",wt:"120g",tip:"Quick energy boost"},
+  {id:"hs6",name:"Mixed Nuts",kcal:90,qty:"10 pieces",wt:"15g",tip:"Healthy fats, very satisfying"},
+  {id:"hs7",name:"Green Tea",kcal:2,qty:"1 cup",wt:"200ml",tip:"Suppresses appetite naturally"},
+  {id:"hs8",name:"Sprouts",kcal:50,qty:"1 bowl",wt:"60g",tip:"High protein + fibre combo"},
+  {id:"hs9",name:"Guava",kcal:68,qty:"1 medium",wt:"100g",tip:"Low cal, high fibre fruit"},
+  {id:"hs10",name:"Coconut Water",kcal:45,qty:"1 glass",wt:"240ml",tip:"Hydrating, kills sweet cravings"},
+  {id:"hs11",name:"Cucumber",kcal:16,qty:"1 cup",wt:"120g",tip:"Almost zero cal, very filling"},
+  {id:"hs12",name:"Soaked Almonds",kcal:42,qty:"5 pieces",wt:"7g",tip:"Best morning snack"},
+  {id:"hs13",name:"Plain Curd",kcal:60,qty:"1 bowl",wt:"100g",tip:"Probiotic + protein rich"},
+  {id:"hs14",name:"Watermelon",kcal:60,qty:"2 slices",wt:"200g",tip:"Great for night shift"},
+  {id:"hs15",name:"Papaya",kcal:55,qty:"1 cup",wt:"145g",tip:"Aids digestion, low cal"},
+];
+
+// ── STATE ────────────────────────────────────────────────────────
+let state = {
+  activeTab: "today",
+  data: loadData(),
+  searchQuery: "",
+  searchSource: "basic",
+  selectedSlot: "breakfast",
+  qtyMap: {},
+  showHungry: false,
+  hungryQuery: "",
+  noteInput: "",
+};
+
+function getTodayKey(){ return new Date().toISOString().slice(0,10); }
+function loadData(){ try{ const r=localStorage.getItem(STORAGE_KEY); return r?JSON.parse(r):{}; }catch(e){ return {}; } }
+function saveData(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data)); }catch(e){} }
+function getToday(){ return state.data[getTodayKey()]||{mealFoods:{},exercises:{},water:0,weight:null,note:""}; }
+function updateToday(patch){
+  const k=getTodayKey();
+  state.data[k]={...(state.data[k]||{}), ...patch};
+  saveData();
+}
+function getWeekDates(){
+  return Array.from({length:7},(_,i)=>{
+    const d=new Date(); d.setDate(d.getDate()-(6-i));
+    return d.toISOString().slice(0,10);
+  });
+}
+
+// ── FOOD SEARCH ─────────────────────────────────────────────────
+function searchFoods(q){
+  if(!q||q.length<1) return [];
+  const query=q.toLowerCase().trim();
+  const words=query.split(/\s+/).filter(w=>w.length>1);
+  return ALL_FOODS.map(f=>{
+    const n=f.name.toLowerCase();
+    const c=f.cat.toLowerCase();
+    let score=0;
+    if(n===query) score=100;
+    else if(n.startsWith(query)) score=85;
+    else if(n.includes(query)) score=70;
+    else if(c===query) score=50;
+    else if(c.includes(query)) score=35;
+    else if(words.some(w=>n.includes(w))) score=45;
+    return {...f,score};
+  }).filter(f=>f.score>0).sort((a,b)=>b.score-a.score).slice(0,10);
+}
+
+// ── ACTIONS ─────────────────────────────────────────────────────
+function addFood(food, slot, qty){
+  const td=getToday();
+  const mf={...(td.mealFoods||{})};
+  const sl=[...(mf[slot]||[])];
+  const uid=food.id+"_"+Date.now();
+  sl.push({
+    uid, id:food.id, name:food.name,
+    qty: qty===1 ? food.qty : qty+"× "+food.qty,
+    weight: Math.round(food.weight*qty),
+    unit: food.unit,
+    kcal: Math.round(food.kcal*qty),
+    protein: food.protein ? +(food.protein*qty).toFixed(1) : null,
+    carbs: food.carbs ? +(food.carbs*qty).toFixed(1) : null,
+    fat: food.fat ? +(food.fat*qty).toFixed(1) : null,
+  });
+  mf[slot]=sl;
+  updateToday({mealFoods:mf});
+  showToast("✅ "+food.name+" added to "+MEAL_SLOTS.find(s=>s.key===slot).label);
+  render();
+}
+
+function removeFood(slot, uid){
+  const td=getToday();
+  const mf={...(td.mealFoods||{})};
+  mf[slot]=(mf[slot]||[]).filter(f=>f.uid!==uid);
+  updateToday({mealFoods:mf});
+  render();
+}
+
+function toggleExercise(id){
+  const td=getToday();
+  const ex={...(td.exercises||{})};
+  ex[id]=!ex[id];
+  updateToday({exercises:ex});
+  render();
+}
+
+function setWater(val){
+  updateToday({water:Math.max(0,Math.min(WATER_GLASSES,val))});
+  render();
+}
+
+// ── TOAST ────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.style.display="block";
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ t.style.display="none"; },2500);
+}
+
+// ── MODALS ───────────────────────────────────────────────────────
+function openWeightModal(){
+  document.getElementById("weightModal").style.display="flex";
+  document.getElementById("weightInp").value="";
+  setTimeout(()=>document.getElementById("weightInp").focus(),100);
+}
+function closeWeightModal(){ document.getElementById("weightModal").style.display="none"; }
+function saveWeight(){
+  const w=parseFloat(document.getElementById("weightInp").value);
+  if(!isNaN(w)&&w>0){ updateToday({weight:w}); closeWeightModal(); render(); }
+}
+
+// ── EXPORT CSV ───────────────────────────────────────────────────
+function exportCSV(){
+  const rows=[["Date","Meal","Food","Qty","Weight","Kcal","Protein(g)","Carbs(g)","Fat(g)","Water(ml)","Exercise","Body Weight(kg)"]];
+  Object.entries(state.data).sort().forEach(([date,d])=>{
+    const water=(d.water||0)*250;
+    const ex=Object.entries(d.exercises||{}).filter(([,v])=>v).map(([k])=>k).join("+")||"-";
+    const bw=d.weight||"-";
+    const mf=d.mealFoods||{};
+    let hasFood=false;
+    Object.entries(mf).forEach(([slot,foods])=>{
+      (foods||[]).forEach(f=>{
+        hasFood=true;
+        rows.push([date,slot,f.name,f.qty||"",""+(f.weight||"")+(f.unit||""),f.kcal||0,f.protein||"",f.carbs||"",f.fat||"",water,ex,bw]);
+      });
+    });
+    if(!hasFood) rows.push([date,"-","-","-","-",0,"-","-","-",water,ex,bw]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="NightShift_Log_"+new Date().toISOString().slice(0,10)+".csv";
+  a.click();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────
+function render(){
+  const today=getToday();
+  const todayKey=getTodayKey();
+  const totalKcal=Object.values(today.mealFoods||{}).flat().reduce((s,f)=>s+(f.kcal||0),0);
+  const exKcal=Object.entries(today.exercises||{}).filter(([,v])=>v).reduce((s,[k])=>s+(EXERCISES.find(e=>e.id===k)?.kcal||0),0);
+  const netKcal=totalKcal-exKcal;
+  const waterMl=(today.water||0)*250;
+  const totalFoods=Object.values(today.mealFoods||{}).flat().length;
+
+  // Header date
+  document.getElementById("hdr-date").textContent=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})+" · Shift 5:30 PM–2:30 AM";
+  document.getElementById("hdr-weight").textContent=today.weight?today.weight+" kg":"—";
+
+  // Tabs
+  const tabs=[["today","📋 Today"],["meals","🍽️ Meals"],["search","🔍 Search"],["exercise","🏃 Exercise"],["progress","📊 Progress"],["tips","💡 Tips"]];
+  document.getElementById("tabs").innerHTML=tabs.map(([k,l])=>
+    `<button class="tab-btn${state.activeTab===k?" active":""}" onclick="switchTab('${k}')">${l}</button>`
+  ).join("");
+
+  // Content
+  let html="";
+
+  if(state.activeTab==="today"){
+    html+=`
+    <div class="stat-row">
+      <div class="stat" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3)">
+        <div class="stat-num" style="color:${netKcal>TARGET_KCAL?"#ef4444":"#f59e0b"}">${netKcal}</div>
+        <div class="stat-lbl">Net kcal</div>
+        <div class="stat-sub">/${TARGET_KCAL}</div>
+      </div>
+      <div class="stat" style="background:rgba(0,191,165,.1);border:1px solid rgba(0,191,165,.3)">
+        <div class="stat-num" style="color:#00bfa5">${totalFoods}</div>
+        <div class="stat-lbl">Foods</div>
+        <div class="stat-sub">logged</div>
+      </div>
+      <div class="stat" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3)">
+        <div class="stat-num" style="color:#60a5fa">${waterMl}</div>
+        <div class="stat-lbl">Water</div>
+        <div class="stat-sub">ml</div>
+      </div>
+      <div class="stat" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3)">
+        <div class="stat-num" style="color:#a78bfa">${exKcal}</div>
+        <div class="stat-lbl">Burned</div>
+        <div class="stat-sub">kcal</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Calorie Balance</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#78a8b8;margin-bottom:4px">
+        <span>Eaten: ${totalKcal}</span><span>Burned: ${exKcal}</span><span>Target: ${TARGET_KCAL}</span>
+      </div>
+      <div class="pbar"><div class="pfill" style="width:${Math.min(100,netKcal/TARGET_KCAL*100)}%;background:${netKcal>TARGET_KCAL?"#ef4444":"#00bfa5"}"></div></div>
+      <div style="font-size:11px;color:#78a8b8;margin-top:5px;text-align:center">
+        ${netKcal<TARGET_KCAL?`${TARGET_KCAL-netKcal} kcal remaining`:`${netKcal-TARGET_KCAL} kcal over target`}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💧 Water</div>
+      <div class="water-row">
+        ${Array.from({length:WATER_GLASSES},(_,i)=>`
+          <button class="water-btn" style="background:${i<(today.water||0)?"#006d77":"#1a3545"}" onclick="setWater(${i<(today.water||0)?i:i+1})">💧</button>
+        `).join("")}
+      </div>
+      <div class="pbar"><div class="pfill" style="width:${(today.water||0)/WATER_GLASSES*100}%;background:#3b82f6"></div></div>
+      <div style="font-size:11px;color:#78a8b8;margin-top:4px">${waterMl} ml / 2500 ml</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Meal Calorie Targets</div>
+      <div style="font-size:11px;color:#446070;margin-bottom:8px">Stay within the green zone for each meal</div>
+      ${MEAL_SLOTS.map(slot=>{
+        const foods=(today.mealFoods||{})[slot.key]||[];
+        const kcal=foods.reduce((s,f)=>s+(f.kcal||0),0);
+        const pct=Math.min(100,kcal/slot.defaultKcal*100);
+        const over=kcal>slot.maxKcal;
+        const barColor=over?"#ef4444":kcal>=slot.minKcal&&kcal>0?"#00bfa5":slot.color;
+        return `
+        <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <div><span style="font-size:13px;margin-right:5px">${slot.emoji}</span><span style="font-size:12px;font-weight:600">${slot.label}</span><span style="font-size:10px;color:#446070;margin-left:5px">${slot.time}</span></div>
+            <div style="font-size:12px"><span style="font-weight:800;color:${over?"#ef4444":kcal>0?"#00bfa5":"#446070"}">${kcal}</span><span style="color:#446070"> / ${slot.minKcal}–${slot.maxKcal} kcal</span></div>
+          </div>
+          <div class="pbar" style="height:4px"><div class="pfill" style="width:${pct}%;background:${barColor}"></div></div>
+          ${kcal===0?`<div style="font-size:10px;color:#2d4a5a;margin-top:2px">${slot.tip}</div>`:""}
+          ${over?`<div style="font-size:10px;color:#ef4444;margin-top:2px">⚠ ${kcal-slot.maxKcal} kcal over max</div>`:""}
+        </div>`;
+      }).join("")}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-teal" style="flex:1;padding:9px" onclick="switchTab('search')">🔍 Add Food</button>
+        <button class="btn btn-purple" style="flex:1;padding:9px" onclick="switchTab('meals');state.showHungry=true;render()">🍎 Hungry?</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 Note</div>
+      ${today.note?`<div style="font-size:12px;color:#80cbc4;margin-bottom:7px;font-style:italic">"${today.note}"</div>`:""}
+      <div style="display:flex;gap:7px">
+        <input class="inp" id="noteInp" placeholder="How are you feeling today?" value="${state.noteInput||""}" oninput="state.noteInput=this.value">
+        <button class="btn btn-teal" style="padding:8px 12px" onclick="saveNote()">Save</button>
+      </div>
+    </div>`;
+  }
+
+  else if(state.activeTab==="meals"){
+    html+=`<div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Total: <strong style="color:#00bfa5">${totalKcal} kcal</strong> · ${totalFoods} items today</div>`;
+    html+=MEAL_SLOTS.map(slot=>{
+      const foods=(today.mealFoods||{})[slot.key]||[];
+      const kcal=foods.reduce((s,f)=>s+(f.kcal||0),0);
+      const pct=Math.min(100,kcal/slot.defaultKcal*100);
+      const over=kcal>slot.maxKcal;
+      const under=kcal>0&&kcal<slot.minKcal;
+      const barColor=over?"#ef4444":kcal>=slot.minKcal&&kcal>0?"#00bfa5":slot.color;
+      return `
+      <div class="slot-card" style="border-left:3px solid ${slot.color}77">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div><span style="font-size:15px;margin-right:6px">${slot.emoji}</span><span style="font-size:13px;font-weight:700">${slot.label}</span><span style="font-size:11px;color:#446070;margin-left:7px">${slot.time}</span></div>
+          <div style="text-align:right"><span style="font-size:13px;font-weight:800;color:${over?"#ef4444":kcal>0?"#00bfa5":"#446070"}">${kcal}</span><span style="font-size:11px;color:#446070"> / ${slot.defaultKcal}</span></div>
+        </div>
+        <div class="pbar" style="height:5px;margin-bottom:4px"><div class="pfill" style="width:${pct}%;background:${barColor}"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#2d4a5a;margin-bottom:5px">
+          <span>Min:${slot.minKcal}</span>
+          <span style="color:${over?"#ef4444":under?"#f59e0b":"#446070"};font-weight:600">${over?`⚠ ${kcal-slot.maxKcal} over`:under?`↑ eat ${slot.minKcal-kcal} more`:kcal>0?"✓ On target":slot.tip}</span>
+          <span>Max:${slot.maxKcal}</span>
+        </div>
+        ${foods.map(f=>`
+          <div class="food-item">
+            <div style="flex:1">
+              <div class="fname">${f.name}</div>
+              <div class="fmeta">${f.qty} · <span style="color:#f59e0b">${f.weight}${f.unit}</span></div>
+              ${f.protein||f.carbs||f.fat?`<div class="fmacro">P:${f.protein||0}g · C:${f.carbs||0}g · F:${f.fat||0}g</div>`:""}
+            </div>
+            <span class="fkcal">${f.kcal} kcal</span>
+            <button class="remove-btn" onclick="removeFood('${slot.key}','${f.uid}')">✕</button>
+          </div>
+        `).join("")}
+        ${foods.length===0?`<div style="font-size:11px;color:#2d4a5a;font-style:italic">No food logged yet</div>`:""}
+      </div>`;
+    }).join("");
+
+    html+=`<button class="btn btn-teal btn-full" onclick="switchTab('search')" style="margin-bottom:10px">🔍 Search & Add Food →</button>`;
+
+    // Hungry panel
+    html+=`
+    <div class="card" style="border:1px solid rgba(250,204,21,.2);background:rgba(250,204,21,.04)">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="state.showHungry=!state.showHungry;render()">
+        <div><span style="font-size:14px;margin-right:6px">🍎</span><span style="font-size:13px;font-weight:700;color:#fde68a">Hungry Between Meals?</span></div>
+        <span style="font-size:18px;color:#446070;transform:${state.showHungry?"rotate(180deg)":"rotate(0deg)"};display:inline-block">▾</span>
+      </div>
+      ${state.showHungry?`
+      <div style="margin-top:12px">
+        <div style="font-size:11px;color:#78a8b8;margin-bottom:8px">Best low-calorie options — tap + Add to log:</div>
+        <input class="inp" placeholder="Search snack…" value="${state.hungryQuery}" oninput="state.hungryQuery=this.value;render()" style="margin-bottom:10px">
+        ${HUNGRY_SNACKS.filter(s=>!state.hungryQuery||s.name.toLowerCase().includes(state.hungryQuery.toLowerCase())||s.tip.toLowerCase().includes(state.hungryQuery.toLowerCase())).map(s=>`
+          <div class="hungry-item">
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:700">${s.name}</div>
+              <div style="font-size:11px;color:#78a8b8">${s.qty} · <span style="color:#f59e0b">${s.wt}</span></div>
+              <div style="font-size:10px;color:#80cbc4;margin-top:1px">💡 ${s.tip}</div>
+            </div>
+            <div style="text-align:center;flex-shrink:0;margin-right:8px">
+              <div style="font-size:16px;font-weight:800;color:#00bfa5">${s.kcal}</div>
+              <div style="font-size:9px;color:#446070">kcal</div>
+            </div>
+            <button class="btn btn-purple" style="font-size:11px;padding:5px 9px" onclick="addFood({id:'${s.id}',name:'${s.name}',qty:'${s.qty}',weight:parseInt('${s.wt}')||0,unit:'${s.wt.includes('ml')?'ml':'g'}',kcal:${s.kcal},protein:null,carbs:null,fat:null},'snack',1)">+ Add</button>
+          </div>
+        `).join("")}
+      </div>`:""
+    }
+    </div>
+
+    <div style="padding:11px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:10px">
+      <div style="font-size:12px;font-weight:700;color:#fca5a5;margin-bottom:4px">⚠️ Night Shift Reminder</div>
+      <div style="font-size:11px;color:#78a8b8">Avoid heavy carbs after 10 PM. Never skip the pre-work snack.</div>
+    </div>`;
+  }
+
+  else if(state.activeTab==="search"){
+    const results=searchFoods(state.searchQuery);
+    html+=`
+    <div class="card">
+      <div class="card-title">🔍 Food Search</div>
+      <div style="font-size:11px;color:#78a8b8;margin-bottom:10px">Search 90+ foods. Adjust qty and meal, then tap + Add.</div>
+      <div class="search-wrap" style="margin-bottom:10px">
+        <span class="search-icon">🔍</span>
+        <input class="inp search-inp" id="searchInp" placeholder="Type food name… e.g. idli, apple, chicken" value="${state.searchQuery}" oninput="state.searchQuery=this.value;render()">
+        ${state.searchQuery?`<button class="clear-btn" onclick="state.searchQuery='';render()">✕</button>`:""}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:11px;color:#78a8b8;flex-shrink:0">Add to:</span>
+        <select class="inp" style="flex:1;font-size:12px;padding:6px 10px" onchange="state.selectedSlot=this.value">
+          ${MEAL_SLOTS.map(s=>`<option value="${s.key}"${state.selectedSlot===s.key?" selected":""}>${s.emoji} ${s.label} (${s.time})</option>`).join("")}
+        </select>
+      </div>
+      ${!state.searchQuery?`
+        <div style="font-size:11px;color:#446070;margin-bottom:6px">Quick browse:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          ${["breakfast","lunch","snack","nonveg","drink","fruit","fastfood","sweet"].map(cat=>`
+            <button class="chip" onclick="state.searchQuery='${cat}';render()">${cat.charAt(0).toUpperCase()+cat.slice(1)}</button>
+          `).join("")}
+        </div>
+      `:""}
+      ${state.searchQuery&&results.length===0?`<div style="text-align:center;padding:16px;color:#446070;font-size:12px">No results found. Try a different spelling.</div>`:""}
+      ${results.map(f=>{
+        const qty=state.qtyMap[f.id]||1;
+        const sKcal=Math.round(f.kcal*qty);
+        const sWt=Math.round(f.weight*qty);
+        const sP=f.protein?+(f.protein*qty).toFixed(1):null;
+        const sC=f.carbs?+(f.carbs*qty).toFixed(1):null;
+        const sF=f.fat?+(f.fat*qty).toFixed(1):null;
+        return `
+        <div class="result-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px">
+            <div style="flex:1">
+              <div class="rname">${f.name}</div>
+              <div class="rmeta">Per serving: ${f.qty} · <span style="color:#f59e0b;font-weight:700">${sWt}${f.unit}</span></div>
+              ${sP!==null?`<div class="rmacro">Protein ${sP}g · Carbs ${sC}g · Fat ${sF}g</div>`:""}
+            </div>
+            <div style="text-align:right;flex-shrink:0;margin-left:10px">
+              <div style="font-size:18px;font-weight:800;color:#00bfa5">${sKcal}</div>
+              <div style="font-size:10px;color:#78a8b8">kcal</div>
+            </div>
+          </div>
+          <div class="add-row">
+            <div class="qty-ctrl">
+              <button onclick="state.qtyMap['${f.id}']=Math.max(0.5,+((${qty}-0.5).toFixed(1)));render()">−</button>
+              <span>${qty}×</span>
+              <button onclick="state.qtyMap['${f.id}']=+((${qty}+0.5).toFixed(1));render()">+</button>
+            </div>
+            <select class="inp" style="flex:1;font-size:11px;padding:5px 8px" onchange="state.selectedSlot=this.value">
+              ${MEAL_SLOTS.map(s=>`<option value="${s.key}"${state.selectedSlot===s.key?" selected":""}>${s.emoji} ${s.label}</option>`).join("")}
+            </select>
+            <button class="btn btn-teal" style="padding:6px 12px;font-size:12px;white-space:nowrap"
+              onclick="addFood({id:'${f.id}',name:'${f.name}',qty:'${f.qty}',weight:${f.weight},unit:'${f.unit}',kcal:${f.kcal},protein:${f.protein||null},carbs:${f.carbs||null},fat:${f.fat||null}},'${state.selectedSlot}',${qty})">
+              + Add
+            </button>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`;
+  }
+
+  else if(state.activeTab==="exercise"){
+    html+=`
+    <div class="card">
+      <div class="card-title">🏃 Today's Exercise</div>
+      <div class="ex-grid">
+        ${EXERCISES.map(ex=>{
+          const active=!!(today.exercises||{})[ex.id];
+          return `
+          <button class="ex-btn${active?" active":""}" onclick="toggleExercise('${ex.id}')">
+            <div style="font-size:20px">${ex.emoji}</div>
+            <div style="font-weight:700;margin-top:3px">${ex.label}</div>
+            <div style="font-size:10px;opacity:.8">${ex.duration}</div>
+            <div style="font-size:10px;color:${active?"#b2dfdb":"#446070"};margin-top:2px">~${ex.kcal} kcal</div>
+          </button>`;
+        }).join("")}
+      </div>
+      ${exKcal>0?`<div style="margin-top:10px;padding:8px 11px;background:rgba(0,109,119,.15);border-radius:8px;font-size:12px;color:#80cbc4">🎉 Great! You burned ~${exKcal} kcal today.</div>`:""}
+    </div>
+    <div class="card">
+      <div class="card-title">📅 Weekly Plan</div>
+      ${[["Mon–Tue","20–30 min Brisk Walk","Best time: 10–11 AM after waking"],["Wed","Rest / Light Yoga","Stretch and recover"],["Thu–Fri","30 min Walk + Strength","10 squats, 10 lunges, 10 push-ups"],["Sat","Cycling or Jog","Push harder on weekends"],["Sun","Active Rest","Walk, yoga, or family activity"]].map(([day,act,note])=>`
+        <div class="week-row">
+          <div style="font-size:11px;font-weight:700;color:#006d77;width:50px;flex-shrink:0">${day}</div>
+          <div>
+            <div style="font-size:12px;font-weight:600">${act}</div>
+            <div style="font-size:11px;color:#78a8b8">${note}</div>
+          </div>
+        </div>
+      `).join("")}
+    </div>`;
+  }
+
+  else if(state.activeTab==="progress"){
+    const weekDates=getWeekDates();
+    const wtVals=weekDates.map(d=>(state.data[d]||{}).weight).filter(Boolean);
+    const maxWt=wtVals.length?Math.max(...wtVals)+1:86;
+    const minWt=wtVals.length?Math.min(...wtVals)-1:70;
+    const range=maxWt-minWt||5;
+
+    html+=`
+    <div class="card">
+      <div class="card-title">⚖️ Weight (7 Days)</div>
+      <div class="bar-chart">
+        ${weekDates.map(date=>{
+          const w=(state.data[date]||{}).weight;
+          const pct=w?((w-minWt)/range)*70+10:0;
+          const isToday=date===todayKey;
+          return `
+          <div class="bar-col">
+            ${w?`<div class="bar-val">${w}</div>`:"<div class='bar-val'></div>"}
+            <div class="bar-track"><div class="bar-fill" style="height:${w?pct:3}%;background:${isToday?"#006d77":"#00bfa566"}"></div></div>
+            <div class="bar-day">${new Date(date+"T12:00:00").toLocaleDateString("en",{weekday:"short"})}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📅 7-Day Log</div>
+      ${weekDates.map(date=>{
+        const d=state.data[date]||{};
+        const foods=Object.values(d.mealFoods||{}).flat().length;
+        const kcal=Object.values(d.mealFoods||{}).flat().reduce((s,f)=>s+(f.kcal||0),0);
+        const ex=Object.values(d.exercises||{}).filter(Boolean).length;
+        const water=(d.water||0)*250;
+        const isToday=date===todayKey;
+        return `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;margin-bottom:3px;background:${isToday?"rgba(0,109,119,.15)":"transparent"}">
+          <div style="width:46px;font-size:11px;font-weight:${isToday?700:400};color:${isToday?"#80cbc4":"#78a8b8"}">
+            ${isToday?"Today":new Date(date+"T12:00:00").toLocaleDateString("en",{weekday:"short",day:"numeric"})}
+          </div>
+          <div style="flex:1;display:flex;gap:7px;font-size:11px;flex-wrap:wrap">
+            <span>🍽️${foods}</span>
+            ${kcal>0?`<span style="color:#f59e0b">🔥${kcal}</span>`:""}
+            <span>🏃${ex}</span>
+            <span>💧${water}ml</span>
+            ${d.weight?`<span>⚖️${d.weight}kg</span>`:""}
+          </div>
+          <div class="dot-row">
+            ${[foods>=3,ex>=1,(d.water||0)>=8].map(done=>`<div class="dot" style="background:${done?"#00bfa5":"#1a3545"}"></div>`).join("")}
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎯 Goals</div>
+      ${[["Target Weight","70–74 kg","⚖️"],["Timeline","~6 months","📅"],["Daily Calories","1,600–1,800 kcal","🔥"],["Expected Loss","0.3–0.5 kg/week","📉"],["Water Daily","2.5–3 litres","💧"]].map(([l,v,e])=>`
+        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px">
+          <span style="color:#78a8b8">${e} ${l}</span>
+          <span style="font-weight:700;color:#80cbc4">${v}</span>
+        </div>
+      `).join("")}
+    </div>
+
+    <div class="card">
+      <div class="card-title">📥 Export Logs</div>
+      <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Download all daily food, exercise, water and weight logs as a CSV file. Open in Excel or Google Sheets.</div>
+      <button class="btn btn-green btn-full" onclick="exportCSV()">📥 Download CSV Log</button>
+      <div style="font-size:10px;color:#2d4a5a;margin-top:7px;text-align:center">Includes all dates · food · calories · macros · water · exercise · weight</div>
+    </div>`;
+  }
+
+  else if(state.activeTab==="tips"){
+    const DOS=[
+      ["🕘 Stick to meal timings","Eat at the same time every day. Your body's clock controls fat burning — consistency matters more than perfection."],
+      ["🥗 Eat protein every meal","Protein keeps you full longer and protects muscle. Include egg, dal, curd, chicken, or fish in at least 3 meals."],
+      ["💧 Drink water before meals","Drink 1 glass of water 15 min before eating. Reduces hunger and prevents overeating."],
+      ["🌾 Choose complex carbs","Prefer brown rice, ragi, oats, and whole wheat over white rice and maida. They digest slowly and keep energy steady."],
+      ["🥬 Fill half plate with veggies","Vegetables add volume with very few calories. You eat more, feel full, but consume less kcal."],
+      ["🚶 Move after waking up","Walk or stretch for 10–20 min after waking at 9 AM. Kickstarts metabolism before breakfast."],
+      ["😴 Sleep by 3 AM sharp","Sleep deprivation increases hunger hormones. Getting full 6 hours improves fat loss significantly."],
+      ["📊 Log every meal here","Tracking is the #1 habit of successful weight loss. Even logging for 3 days creates awareness that changes behaviour."],
+      ["🍋 Start day with warm water","Warm water + lemon on empty stomach improves digestion and reduces bloating."],
+      ["🧘 Manage stress","High stress = high cortisol = belly fat storage. Even 10 min of deep breathing helps."],
+    ];
+    const DONTS=[
+      ["🚫 Skip meals","Skipping meals — especially breakfast — slows metabolism and causes overeating later. Never skip pre-work snack."],
+      ["🍟 Deep fried foods at night","Parotta, fried chicken, samosa after 9 PM is the #1 cause of weight gain on night shift. Digestion slows at night."],
+      ["🧃 Sugary drinks","Juice, soft drinks, sweetened lassi add 150–300 empty kcal with no nutrition. Drink water, buttermilk, or green tea instead."],
+      ["🍚 Huge rice portions","More than 1.5 cups cooked rice per meal is too much. Use a smaller plate — it tricks the brain into feeling satisfied."],
+      ["🌙 Heavy carbs after 10 PM","Bread, rice, parotta late at night gets stored directly as fat. Stick to protein + light snacks after 10 PM."],
+      ["📱 Eating while watching phone","Distracted eating causes you to eat 25–30% more without realising. Eat mindfully, chew slowly."],
+      ["⚡ Skipping sleep for food","Staying awake past 3 AM and eating is one of the worst habits for night shift weight gain. Sleep is non-negotiable."],
+      ["🍬 Stress/boredom snacking","Night shift boredom leads to snacking. Drink water or green tea first. Wait 10 minutes — the craving usually passes."],
+      ["🏋️ Exercising on empty stomach","Don't exercise without eating anything. Have a small snack (banana, nuts) 20 min before workout."],
+      ["📉 Expecting fast results","Healthy weight loss is 0.3–0.5 kg/week. Slow loss = fat loss. Fast loss = muscle loss. Trust the process."],
+    ];
+    const NIGHT=[
+      ["💡 Your biggest enemy is fatigue eating","When tired, the brain craves sugar and carbs. Keep roasted chana, boiled eggs, or fruits ready at work to avoid vending machine temptations."],
+      ["🕐 Your 'night' is your day","Don't compare yourself to people on day schedules. Follow the meal plan consistently and your metabolism will adapt."],
+      ["🌅 Blackout curtains for sleep","Poor sleep = poor weight loss. Use blackout curtains, phone on DND, sleep by 3 AM. 6 hours of quality sleep beats 8 hours of broken sleep."],
+      ["🥗 Meal prep on your day off","Prepare boiled eggs, cut fruits, roasted chana before your shift week. This removes all excuses for bad food choices."],
+      ["☕ Limit caffeine after midnight","Tea/coffee after 12 AM disrupts sleep quality at 3 AM. Switch to warm water or herbal tea for the last 2 hours of your shift."],
+      ["🏃 Best exercise time: 10–11 AM","After waking and breakfast, your energy is highest. Even 20 minutes of brisk walking at this time burns more fat."],
+    ];
+
+    html+=`
+    <div class="card" style="border:1px solid rgba(0,191,165,.25);background:rgba(0,191,165,.04)">
+      <div class="card-title" style="color:#00bfa5">✅ Do's — Follow These Daily</div>
+      ${DOS.map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
+    </div>
+    <div class="card" style="border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.04)">
+      <div class="card-title" style="color:#f87171">❌ Don'ts — Avoid These</div>
+      ${DONTS.map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
+    </div>
+    <div class="card" style="border:1px solid rgba(250,204,21,.25);background:rgba(250,204,21,.04)">
+      <div class="card-title" style="color:#fde68a">🌙 Night Shift Specific Tips</div>
+      ${NIGHT.map(([t,d])=>`<div class="tip-item"><div class="tip-title" style="color:#fde68a">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
+    </div>
+    <div class="card" style="border:1px solid rgba(139,92,246,.25);background:rgba(139,92,246,.04)">
+      <div class="card-title" style="color:#c4b5fd">🎯 Weekly Targets</div>
+      ${[["⚖️ Weigh yourself","Once a week, same time, same conditions (morning after waking). Daily weight fluctuates — weekly trend is what matters."],["🔥 Stay within 1600–1800 kcal","Hit your calorie target 5 out of 7 days. 2 flex days are okay — just don't go above 2100 kcal."],["🏃 Exercise 4–5 days","Aim for 4 sessions per week minimum. Even a 20 min walk counts. Consistency beats intensity."],["💧 2.5 litres water daily","Log 10 glasses every day in the tracker. Dehydration is often mistaken for hunger on night shift."],["📝 Log meals daily","Log at least 5 out of 7 days. The act of logging alone reduces calorie intake by 10–15%."]].map(([t,d])=>`<div class="tip-item"><div class="tip-title">${t}</div><div class="tip-desc">${d}</div></div>`).join("")}
+    </div>`;
+  }
+
+  document.getElementById("content").innerHTML=html;
+}
+
+function saveNote(){
+  const v=document.getElementById("noteInp")?.value||"";
+  updateToday({note:v});
+  state.noteInput="";
+  render();
+}
+
+function switchTab(tab){
+  state.activeTab=tab;
+  render();
+  window.scrollTo(0,0);
+}
+
+// Init
+render();
+</script>
+
+</body>
+</html>
