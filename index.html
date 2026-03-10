@@ -121,12 +121,13 @@ const TARGET_KCAL = 1700;
 const WATER_GLASSES = 10;
 
 const MEAL_SLOTS = [
-  {key:"wakeup",   label:"Wake-Up",       time:"9:00 AM",  emoji:"🌅",defaultKcal:50, minKcal:30, maxKcal:80, color:"#0891b2",tip:"Light start — water + a few almonds only"},
-  {key:"breakfast",label:"Breakfast",     time:"10:00 AM", emoji:"🍽️",defaultKcal:380,minKcal:300,maxKcal:450,color:"#059669",tip:"Biggest meal — include protein + carbs"},
-  {key:"lunch",    label:"Lunch",         time:"2:00 PM",  emoji:"🥘",defaultKcal:475,minKcal:400,maxKcal:550,color:"#d97706",tip:"Rice + sambar + veggie + curd"},
-  {key:"snack",    label:"Pre-Work Snack",time:"4:30 PM",  emoji:"🍌",defaultKcal:165,minKcal:100,maxKcal:200,color:"#7c3aed",tip:"Light fuel before shift — fruit or chana"},
-  {key:"dinner",   label:"Dinner",        time:"9:00 PM",  emoji:"🌙",defaultKcal:400,minKcal:300,maxKcal:450,color:"#be185d",tip:"Keep lighter than lunch"},
-  {key:"latesnack",label:"Late Snack",    time:"12:00 AM", emoji:"🥚",defaultKcal:100,minKcal:50, maxKcal:150,color:"#556070",tip:"Only if hungry. Egg, nuts or green tea."},
+  {key:"wakeup",   label:"Wake-Up",       time:"9:00–9:30 AM",   emoji:"🌅",defaultKcal:50, minKcal:30, maxKcal:80, color:"#0891b2",tip:"Warm lemon water / black tea / green tea only",protein:"3g",carbs:"5g",fat:"2g"},
+  {key:"breakfast",label:"Breakfast",     time:"10:00–10:30 AM", emoji:"🍽️",defaultKcal:380,minKcal:300,maxKcal:450,color:"#059669",tip:"Biggest meal — include protein + carbs",protein:"25–30g",carbs:"45–55g",fat:"10–12g"},
+  {key:"morningsnack",label:"Morning Snack",time:"11:30–12:00 PM",emoji:"🍎",defaultKcal:120,minKcal:80,maxKcal:150,color:"#0e7490",tip:"Light snack — fruit, sprouts or buttermilk",protein:"5–8g",carbs:"15–20g",fat:"2–4g"},
+  {key:"lunch",    label:"Lunch",         time:"2:00–2:30 PM",   emoji:"🥘",defaultKcal:475,minKcal:400,maxKcal:550,color:"#d97706",tip:"Rice + sambar + veggie + curd",protein:"30–35g",carbs:"65–75g",fat:"12–15g"},
+  {key:"snack",    label:"Pre-Work Snack",time:"5:00–6:00 PM",   emoji:"🍌",defaultKcal:165,minKcal:100,maxKcal:200,color:"#7c3aed",tip:"Light fuel before shift — fruit or chana",protein:"8–10g",carbs:"18–22g",fat:"4–6g"},
+  {key:"dinner",   label:"Dinner",        time:"9:00–10:00 PM",  emoji:"🌙",defaultKcal:400,minKcal:300,maxKcal:450,color:"#be185d",tip:"Lighter than lunch — protein + veggies, low carbs",protein:"25–30g",carbs:"35–45g",fat:"10–12g"},
+  {key:"latesnack",label:"Late Snack",    time:"11:30 PM–2:30 AM",emoji:"🥚",defaultKcal:100,minKcal:50,maxKcal:150,color:"#6b7280",tip:"Protein only — egg, nuts or green tea. No carbs!",protein:"8–10g",carbs:"5–8g",fat:"3–5g"},
 ];
 
 const EXERCISES = [
@@ -135,6 +136,34 @@ const EXERCISES = [
   {id:"strength",label:"Strength",   duration:"20 min",   emoji:"💪",kcal:150},
   {id:"cycling", label:"Cycling",    duration:"30 min",   emoji:"🚴",kcal:200},
 ];
+
+// Foods to avoid: high fat+carb, fried, sugary
+const AVOID_FOODS = {
+  "parotta":"High fat + refined carbs — worst combo",
+  "poori":"Deep fried + maida — avoid completely",
+  "masala_dosa":"High fat filling — limit",
+  "medu_vada":"Deep fried — high fat",
+  "aloo_paratha":"High carb + fat — avoid at night",
+  "biryani_chicken":"Very high cal — limit to lunch only",
+  "kfc":"Deep fried — avoid completely",
+  "shawarma":"High fat wrap — limit",
+  "mutton_curry":"Very high fat — once a week max",
+  "veg_burger":"Refined bun + fried — avoid",
+  "chicken_burger":"Refined bun + fried — avoid",
+  "pizza_slice":"High fat + refined carbs",
+  "maggi":"Refined + high sodium — avoid",
+  "fried_rice":"High oil — avoid",
+  "gulab_jamun":"Pure sugar + fat — avoid",
+  "kheer":"High sugar + fat",
+  "ice_cream":"High sugar + fat — avoid",
+  "chocolate":"High sugar — limit",
+  "samosa":"Deep fried — avoid",
+  "vada_pav":"Fried + refined — avoid",
+  "murukku":"Deep fried — limit",
+  "lassi":"High sugar — avoid sweetened",
+  "ghee":"Use sparingly — 1 tsp max",
+  "peanuts":"High fat — limit portion",
+};
 
 const ALL_FOODS = [
   {id:"idli",name:"Idli",qty:"2 pieces",weight:120,kcal:130,protein:4,carbs:26,fat:1,unit:"g",cat:"breakfast"},
@@ -258,6 +287,9 @@ let state = {
   data: loadData(),
   searchQuery: "",
   searchSource: "basic",
+  searchMode: "ai",
+  aiResult: null,
+  aiLoading: false,
   selectedSlot: "breakfast",
   qtyMap: {},
   showHungry: false,
@@ -431,8 +463,10 @@ function handleSearchInput(val){
   state.searchQuery=val;
   const cb=document.getElementById("searchClearBtn");
   if(cb) cb.style.display=val?"inline":"none";
-  clearTimeout(searchDebounce);
-  searchDebounce=setTimeout(()=>renderSearchResults(), 80);
+  if(state.searchMode==="db"){
+    clearTimeout(searchDebounce);
+    searchDebounce=setTimeout(()=>renderSearchResults(), 80);
+  }
 }
 
 function clearSearch(){
@@ -452,6 +486,7 @@ function handleHungryInput(val){
 function renderSearchResults(){
   const el=document.getElementById("searchResults");
   if(!el) return;
+  if(state.searchMode==="ai") return; // AI mode handled separately
   const results=searchFoods(state.searchQuery);
   if(state.searchQuery&&results.length===0){
     el.innerHTML=`<div style="text-align:center;padding:16px;color:#446070;font-size:12px">No results found. Try a different spelling.</div>`;
@@ -464,16 +499,22 @@ function renderSearchResults(){
     const sP=f.protein?+(f.protein*qty).toFixed(1):null;
     const sC=f.carbs?+(f.carbs*qty).toFixed(1):null;
     const sF=f.fat?+(f.fat*qty).toFixed(1):null;
+    const avoidReason=AVOID_FOODS[f.id]||null;
     return `
-    <div class="result-card">
+    <div class="result-card" style="${avoidReason?'border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.06)':''}">
+      ${avoidReason?`<div style="font-size:10px;color:#f87171;font-weight:700;margin-bottom:5px;padding:3px 7px;background:rgba(239,68,68,.15);border-radius:5px">⚠️ Avoid: ${avoidReason}</div>`:''}
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px">
         <div style="flex:1">
-          <div class="rname">${f.name}</div>
+          <div class="rname" style="${avoidReason?'color:#fca5a5':''}">${f.name}${avoidReason?' 🚫':''}</div>
           <div class="rmeta">Per serving: ${f.qty} · <span style="color:#f59e0b;font-weight:700">${sWt}${f.unit}</span></div>
-          ${sP!==null?`<div class="rmacro">Protein ${sP}g · Carbs ${sC}g · Fat ${sF}g</div>`:""}
+          ${sP!==null?`<div style="font-size:10px;margin-top:3px;display:flex;gap:8px">
+            <span style="color:#34d399">P:${sP}g</span>
+            <span style="color:#fbbf24">C:${sC}g</span>
+            <span style="color:#a78bfa">F:${sF}g</span>
+          </div>`:""}
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:10px">
-          <div style="font-size:18px;font-weight:800;color:#00bfa5">${sKcal}</div>
+          <div style="font-size:18px;font-weight:800;color:${avoidReason?'#f87171':'#00bfa5'}">${sKcal}</div>
           <div style="font-size:10px;color:#78a8b8">kcal</div>
         </div>
       </div>
@@ -524,6 +565,290 @@ function renderHungryResults(){
       </button>
     </div>
   `).join("");
+}
+
+// ── SEARCH MODE HELPERS ─────────────────────────────────────────
+function switchSearchMode(mode){
+  state.searchMode = mode;
+  state.searchQuery = "";
+  state.aiResult = null;
+  aiQty = 1;
+  render();
+}
+
+function dbBrowse(cat){
+  state.searchQuery = cat;
+  const inp = document.getElementById("searchInp");
+  if(inp) inp.value = cat;
+  renderSearchResults();
+}
+
+// ── SMART NUTRITION ENGINE (offline, no API needed) ─────────────
+// Extended nutrition database - 200+ foods with full macros
+const NUTRITION_DB = {
+  // Breakfast
+  "idli":{n:"Idli",s:"2 pieces",w:120,c:130,p:4,cb:26,f:1,fi:1,su:1,so:320,av:false,tip:"Excellent — steamed, low fat, easy to digest",alt:""},
+  "dosa":{n:"Dosa (Plain)",s:"1 piece",w:100,c:150,p:3,cb:28,f:3,fi:1,su:1,so:280,av:false,tip:"Good choice — fermented, probiotic rich",alt:""},
+  "masala dosa":{n:"Masala Dosa",s:"1 piece",w:200,c:340,p:7,cb:55,f:10,fi:3,su:2,so:520,av:true,tip:"High fat filling — have occasionally at lunch only",alt:"Plain dosa with sambar"},
+  "upma":{n:"Upma",s:"1 cup",w:180,c:200,p:5,cb:35,f:5,fi:2,su:1,so:380,av:false,tip:"Good breakfast — add veggies for more nutrition",alt:""},
+  "chapathi":{n:"Chapathi / Roti",s:"2 pieces",w:120,c:200,p:6,cb:38,f:3,fi:3,su:0,so:200,av:false,tip:"Healthy — whole wheat, good fibre",alt:""},
+  "roti":{n:"Roti / Chapathi",s:"2 pieces",w:120,c:200,p:6,cb:38,f:3,fi:3,su:0,so:200,av:false,tip:"Healthy — whole wheat, good fibre",alt:""},
+  "poori":{n:"Poori",s:"2 pieces",w:100,c:280,p:4,cb:32,f:14,fi:1,su:0,so:300,av:true,tip:"Deep fried — high fat, avoid completely",alt:"Chapathi or phulka"},
+  "parotta":{n:"Parotta",s:"2 pieces",w:140,c:360,p:7,cb:52,f:14,fi:1,su:1,so:480,av:true,tip:"Maida + high fat — worst choice for weight loss",alt:"Chapathi or roti"},
+  "appam":{n:"Appam",s:"2 pieces",w:120,c:190,p:4,cb:38,f:2,fi:1,su:2,so:200,av:false,tip:"Good — fermented rice, light on stomach",alt:""},
+  "pongal":{n:"Ven Pongal",s:"1 cup",w:200,c:270,p:7,cb:42,f:8,fi:2,su:1,so:350,av:false,tip:"Protein rich from dal — good breakfast",alt:""},
+  "puttu":{n:"Puttu",s:"1 cylinder",w:150,c:220,p:5,cb:44,f:2,fi:2,su:1,so:180,av:false,tip:"Steamed — healthy with kadala curry",alt:""},
+  "oats":{n:"Oats Porridge",s:"1 bowl",w:200,c:150,p:6,cb:27,f:3,fi:4,su:1,so:120,av:false,tip:"Best breakfast — high fibre, keeps you full 4hrs",alt:""},
+  "poha":{n:"Poha",s:"1 cup",w:180,c:200,p:4,cb:38,f:4,fi:2,su:1,so:300,av:false,tip:"Light breakfast — add peanuts for protein",alt:""},
+  "bread":{n:"Bread Toast (Wheat)",s:"2 slices",w:60,c:160,p:5,cb:28,f:4,fi:2,su:2,so:280,av:false,tip:"OK — choose whole wheat only",alt:"Roti or oats"},
+  "uttapam":{n:"Uttapam",s:"1 piece",w:130,c:175,p:5,cb:30,f:4,fi:2,su:1,so:280,av:false,tip:"Good — add veggies for nutrients",alt:""},
+  "pesarattu":{n:"Pesarattu",s:"2 pieces",w:120,c:180,p:8,cb:28,f:4,fi:3,su:0,so:240,av:false,tip:"Excellent — moong dal, very high protein",alt:""},
+  "medu vada":{n:"Medu Vada",s:"2 pieces",w:100,c:250,p:8,cb:28,f:12,fi:2,su:0,so:400,av:true,tip:"Deep fried — have occasionally, not daily",alt:"Idli or pesarattu"},
+  "aloo paratha":{n:"Aloo Paratha",s:"1 piece",w:120,c:260,p:6,cb:40,f:9,fi:2,su:1,so:380,av:true,tip:"High fat — eat only at lunch, not dinner",alt:"Plain chapathi with dal"},
+  "cornflakes":{n:"Cornflakes with Milk",s:"1 bowl",w:200,c:180,p:6,cb:36,f:2,fi:1,su:8,so:220,av:false,tip:"OK but low fibre — choose oats instead",alt:"Oats porridge"},
+  "ragi":{n:"Ragi Koozh",s:"1 glass",w:250,c:160,p:4,cb:32,f:1,fi:3,su:1,so:150,av:false,tip:"Excellent — high calcium and iron, great for night shift",alt:""},
+  // Rice & Lunch
+  "rice":{n:"Cooked White Rice",s:"1.5 cups",w:225,c:290,p:6,cb:63,f:1,fi:1,su:0,so:10,av:false,tip:"Limit to 1.5 cups — pair with protein and veggies",alt:"Brown rice for more fibre"},
+  "brown rice":{n:"Brown Rice",s:"1.5 cups",w:225,c:260,p:6,cb:55,f:2,fi:3,su:0,so:10,av:false,tip:"Better than white rice — more fibre and nutrients",alt:""},
+  "dal":{n:"Dal (Toor/Masoor)",s:"1 cup",w:180,c:120,p:8,cb:20,f:1,fi:5,su:2,so:300,av:false,tip:"Excellent protein source — have every day",alt:""},
+  "sambar":{n:"Sambar",s:"1 cup",w:200,c:80,p:4,cb:12,f:2,fi:3,su:3,so:400,av:false,tip:"Excellent — high fibre, loaded with veggies",alt:""},
+  "rasam":{n:"Rasam",s:"1 cup",w:200,c:40,p:2,cb:7,f:1,fi:1,su:2,so:350,av:false,tip:"Very low cal — good for digestion",alt:""},
+  "curd":{n:"Plain Curd",s:"1 bowl",w:100,c:60,p:3,cb:4,f:3,fi:0,su:4,so:80,av:false,tip:"Probiotic — great for gut health",alt:""},
+  "curd rice":{n:"Curd Rice",s:"1 cup",w:200,c:220,p:6,cb:38,f:5,fi:1,su:3,so:200,av:false,tip:"Light and cooling — good for dinner",alt:""},
+  "sambar rice":{n:"Sambar Rice",s:"1 plate",w:300,c:380,p:10,cb:72,f:5,fi:4,su:3,so:500,av:false,tip:"Complete meal — balanced nutrition",alt:""},
+  "lemon rice":{n:"Lemon Rice",s:"1 cup",w:200,c:270,p:5,cb:48,f:7,fi:2,su:1,so:400,av:false,tip:"OK for lunch — light and easy",alt:""},
+  "rajma":{n:"Rajma",s:"1 cup",w:200,c:210,p:12,cb:33,f:4,fi:8,su:2,so:350,av:false,tip:"Excellent — very high protein and fibre",alt:""},
+  "chole":{n:"Chole",s:"1 cup",w:200,c:220,p:11,cb:35,f:5,fi:7,su:2,so:400,av:false,tip:"High protein — great for muscle building",alt:""},
+  "palak paneer":{n:"Palak Paneer",s:"1 cup",w:200,c:260,p:12,cb:14,f:18,fi:3,su:2,so:450,av:false,tip:"Nutritious but high fat — have at lunch",alt:"Palak dal for less fat"},
+  "paneer":{n:"Paneer",s:"100g",w:100,c:265,p:18,cb:4,f:20,fi:0,su:2,so:30,av:false,tip:"High protein but high fat — limit portion",alt:""},
+  "veg curry":{n:"Vegetable Curry",s:"1 cup",w:180,c:130,p:3,cb:18,f:5,fi:4,su:4,so:380,av:false,tip:"Great — load up on veggies for volume",alt:""},
+  "biryani":{n:"Chicken Biryani",s:"1 plate",w:350,c:520,p:28,cb:65,f:15,fi:3,su:2,so:700,av:true,tip:"Very high cal — have only at lunch, not dinner",alt:"Chicken + brown rice separately"},
+  "veg biryani":{n:"Veg Biryani",s:"1 plate",w:300,c:400,p:9,cb:70,f:10,fi:4,su:3,so:600,av:false,tip:"OK for lunch — avoid at night",alt:""},
+  // Non-Veg
+  "chicken":{n:"Grilled Chicken",s:"100g",w:100,c:165,p:31,cb:0,f:4,fi:0,su:0,so:75,av:false,tip:"Best protein — grill or bake, never fry",alt:""},
+  "grilled chicken":{n:"Grilled Chicken",s:"100g",w:100,c:165,p:31,cb:0,f:4,fi:0,su:0,so:75,av:false,tip:"Best protein — grill or bake, never fry",alt:""},
+  "chicken curry":{n:"Chicken Curry",s:"1 cup",w:200,c:260,p:28,cb:8,f:13,fi:1,su:2,so:500,av:false,tip:"Good protein — remove excess oil before eating",alt:"Grilled chicken"},
+  "tandoori chicken":{n:"Tandoori Chicken",s:"2 pieces",w:150,c:220,p:32,cb:5,f:8,fi:1,su:2,so:600,av:false,tip:"Excellent — high protein, low fat cooking method",alt:""},
+  "fish":{n:"Fish Curry",s:"1 serving",w:150,c:160,p:20,cb:5,f:7,fi:0,su:1,so:450,av:false,tip:"Excellent — omega-3 rich, great for night shift",alt:""},
+  "fish curry":{n:"Fish Curry",s:"1 serving",w:150,c:160,p:20,cb:5,f:7,fi:0,su:1,so:450,av:false,tip:"Excellent — omega-3 rich, great for night shift",alt:""},
+  "fish fry":{n:"Fish Fry",s:"1 piece",w:100,c:190,p:22,cb:6,f:9,fi:0,su:0,so:400,av:true,tip:"Fried version adds extra fat — prefer curry or grilled",alt:"Grilled fish"},
+  "prawn":{n:"Prawn Curry",s:"1 serving",w:150,c:175,p:18,cb:6,f:8,fi:0,su:1,so:500,av:false,tip:"Good protein, low fat — excellent choice",alt:""},
+  "egg":{n:"Boiled Egg",s:"1 egg",w:50,c:70,p:6,cb:0,f:5,fi:0,su:0,so:65,av:false,tip:"Best snack — high protein, portable",alt:""},
+  "boiled egg":{n:"Boiled Egg",s:"1 egg",w:50,c:70,p:6,cb:0,f:5,fi:0,su:0,so:65,av:false,tip:"Best snack — high protein, portable",alt:""},
+  "omelette":{n:"Omelette (2 eggs)",s:"1",w:100,c:150,p:12,cb:1,f:11,fi:0,su:1,so:200,av:false,tip:"Great breakfast protein — use minimal oil",alt:""},
+  "egg curry":{n:"Egg Curry",s:"2 eggs",w:200,c:220,p:14,cb:8,f:15,fi:1,su:2,so:420,av:false,tip:"Good protein — avoid excess gravy",alt:""},
+  "mutton":{n:"Mutton Curry",s:"1 serving",w:150,c:290,p:24,cb:5,f:19,fi:1,su:1,so:550,av:true,tip:"Very high fat — limit to once a week",alt:"Chicken curry"},
+  "kfc":{n:"KFC Fried Chicken",s:"1 piece",w:120,c:320,p:22,cb:14,f:20,fi:1,su:1,so:700,av:true,tip:"Deep fried + high sodium — avoid completely",alt:"Tandoori chicken"},
+  "shawarma":{n:"Chicken Shawarma",s:"1 wrap",w:200,c:400,p:25,cb:40,f:14,fi:2,su:3,so:800,av:true,tip:"High cal wrap — limit to once a week at lunch",alt:"Grilled chicken with roti"},
+  // Fruits
+  "banana":{n:"Banana",s:"1 medium",w:120,c:89,p:1,cb:23,f:0,fi:3,su:12,so:1,av:false,tip:"Best pre-workout snack — quick energy",alt:""},
+  "apple":{n:"Apple",s:"1 medium",w:150,c:78,p:0,cb:21,f:0,fi:4,su:15,so:2,av:false,tip:"High fibre — keeps hunger away for 2+ hours",alt:""},
+  "mango":{n:"Mango",s:"1 medium",w:200,c:130,p:1,cb:33,f:1,fi:2,su:28,so:2,av:false,tip:"High sugar — limit to 1 per day, have at lunch",alt:"Guava or apple"},
+  "guava":{n:"Guava",s:"1 medium",w:100,c:68,p:3,cb:14,f:1,fi:5,su:9,so:2,av:false,tip:"Excellent — very high fibre and vitamin C",alt:""},
+  "watermelon":{n:"Watermelon",s:"2 slices",w:200,c:60,p:1,cb:15,f:0,fi:1,su:12,so:2,av:false,tip:"Very low cal — great night shift hydration snack",alt:""},
+  "orange":{n:"Orange",s:"1 medium",w:130,c:60,p:1,cb:15,f:0,fi:3,su:12,so:0,av:false,tip:"High vitamin C — boosts immunity for night shift",alt:""},
+  "papaya":{n:"Papaya",s:"1 cup",w:145,c:55,p:1,cb:14,f:0,fi:3,su:8,so:10,av:false,tip:"Excellent for digestion — great late night option",alt:""},
+  "pomegranate":{n:"Pomegranate",s:"half fruit",w:100,c:83,p:2,cb:19,f:1,fi:4,su:14,so:3,av:false,tip:"Very high antioxidants — great for night shift workers",alt:""},
+  "grapes":{n:"Grapes",s:"1 cup",w:150,c:104,p:1,cb:27,f:0,fi:1,su:23,so:3,av:false,tip:"High sugar — limit to small portions",alt:"Apple or guava"},
+  "coconut water":{n:"Coconut Water",s:"1 glass",w:240,c:45,p:2,cb:9,f:0,fi:0,su:6,so:105,av:false,tip:"Excellent hydration — kills sweet cravings naturally",alt:""},
+  // Snacks
+  "roasted chana":{n:"Roasted Chana",s:"1 handful",w:30,c:100,p:6,cb:15,f:2,fi:4,su:0,so:50,av:false,tip:"Best work snack — high protein, portable, filling",alt:""},
+  "nuts":{n:"Mixed Nuts",s:"10 pieces",w:15,c:90,p:3,cb:4,f:8,fi:1,su:1,so:1,av:false,tip:"Healthy fats — limit to 1 handful, very calorie dense",alt:""},
+  "almonds":{n:"Almonds",s:"10 pieces",w:12,c:70,p:3,cb:2,f:6,fi:2,su:1,so:0,av:false,tip:"Best nut — soak overnight for better absorption",alt:""},
+  "peanuts":{n:"Peanuts (Roasted)",s:"1 handful",w:28,c:165,p:7,cb:5,f:14,fi:2,su:1,so:2,av:false,tip:"High protein but calorie dense — limit to 1 handful",alt:"Roasted chana"},
+  "sprouts":{n:"Mixed Sprouts",s:"1 bowl",w:60,c:50,p:4,cb:8,f:0,fi:3,su:1,so:10,av:false,tip:"Excellent — high protein and fibre, zero fat",alt:""},
+  "samosa":{n:"Samosa",s:"2 pieces",w:100,c:260,p:5,cb:32,f:13,fi:2,su:1,so:450,av:true,tip:"Deep fried — avoid completely",alt:"Roasted chana or boiled egg"},
+  "murukku":{n:"Murukku",s:"3 pieces",w:30,c:150,p:2,cb:20,f:7,fi:1,su:0,so:300,av:true,tip:"Fried snack — avoid during weight loss",alt:"Roasted chana"},
+  "dates":{n:"Dates",s:"3 pieces",w:30,c:83,p:1,cb:22,f:0,fi:2,su:18,so:1,av:false,tip:"Natural sweetener — 2–3 is okay, not more",alt:""},
+  // Drinks
+  "buttermilk":{n:"Buttermilk",s:"1 glass",w:200,c:40,p:3,cb:4,f:1,fi:0,su:3,so:200,av:false,tip:"Excellent — probiotic, keeps you full, zero fat",alt:""},
+  "green tea":{n:"Green Tea",s:"1 cup",w:200,c:2,p:0,cb:0,f:0,fi:0,su:0,so:0,av:false,tip:"Excellent — fat burning, appetite suppression",alt:""},
+  "black coffee":{n:"Black Coffee",s:"1 cup",w:200,c:5,p:0,cb:1,f:0,fi:0,su:0,so:5,av:false,tip:"Excellent pre-workout — burns 10–15% more fat",alt:""},
+  "black tea":{n:"Black Tea",s:"1 cup",w:200,c:5,p:0,cb:1,f:0,fi:0,su:0,so:5,av:false,tip:"Good antioxidant — no sugar please",alt:""},
+  "tea":{n:"Tea with Milk & Sugar",s:"1 cup",w:150,c:55,p:1,cb:9,f:1,fi:0,su:7,so:30,av:false,tip:"Limit to 2 cups/day — avoid late night",alt:"Black tea or green tea"},
+  "coffee":{n:"Coffee with Milk",s:"1 cup",w:150,c:60,p:2,cb:9,f:2,fi:0,su:6,so:30,av:false,tip:"OK — avoid after midnight to protect sleep",alt:"Black coffee"},
+  "milk":{n:"Whole Milk",s:"1 glass",w:250,c:150,p:8,cb:12,f:8,fi:0,su:12,so:105,av:false,tip:"Good protein — have at breakfast or post-workout",alt:"Toned milk to reduce fat"},
+  "lassi":{n:"Sweet Lassi",s:"1 glass",w:250,c:220,p:5,cb:38,f:5,fi:0,su:32,so:120,av:true,tip:"Very high sugar — avoid sweetened version",alt:"Plain buttermilk or curd"},
+  "nimbu pani":{n:"Nimbu Pani (no sugar)",s:"1 glass",w:250,c:15,p:0,cb:4,f:0,fi:0,su:1,so:5,av:false,tip:"Excellent — hydrating, electrolytes for night shift",alt:""},
+  // Fast Food
+  "burger":{n:"Chicken Burger",s:"1 burger",w:200,c:420,p:22,cb:45,f:17,fi:2,su:6,so:800,av:true,tip:"Refined bun + fried — avoid completely",alt:"Grilled chicken with roti"},
+  "pizza":{n:"Pizza (1 slice)",s:"1 slice",w:100,c:270,p:12,cb:33,f:10,fi:2,su:4,so:600,av:true,tip:"High fat + refined carbs — avoid completely",alt:"Whole wheat wrap with chicken"},
+  "maggi":{n:"Maggi Noodles",s:"1 packet",w:200,c:350,p:7,cb:55,f:11,fi:1,su:2,so:900,av:true,tip:"Refined + very high sodium — avoid completely",alt:"Oats or poha"},
+  "fried rice":{n:"Veg Fried Rice",s:"1 plate",w:250,c:380,p:8,cb:65,f:10,fi:2,su:2,so:700,av:true,tip:"High oil — avoid, make at home with less oil",alt:"Plain rice with dal"},
+  "noodles":{n:"Noodles",s:"1 plate",w:200,c:320,p:8,cb:58,f:7,fi:2,su:2,so:800,av:true,tip:"Refined carbs + high sodium — avoid",alt:"Brown rice or oats"},
+  // Sweets
+  "gulab jamun":{n:"Gulab Jamun",s:"2 pieces",w:80,c:190,p:3,cb:32,f:6,fi:0,su:28,so:80,av:true,tip:"Pure sugar + fat — avoid or have 1 piece max",alt:"2–3 dates for sweetness"},
+  "kheer":{n:"Kheer",s:"1 bowl",w:150,c:200,p:5,cb:32,f:6,fi:0,su:24,so:80,av:true,tip:"High sugar — have very rarely, tiny portion",alt:"Plain curd with 1 tsp honey"},
+  "ice cream":{n:"Ice Cream",s:"2 scoops",w:100,c:200,p:3,cb:24,f:10,fi:0,su:20,so:80,av:true,tip:"High sugar + fat — avoid during weight loss",alt:"Frozen banana or coconut water"},
+  "chocolate":{n:"Chocolate",s:"1 bar",w:40,c:210,p:3,cb:25,f:11,fi:2,su:22,so:30,av:true,tip:"High sugar + fat — have only dark 70%+ occasionally",alt:"2–3 dates"},
+  // Sides
+  "ghee":{n:"Ghee",s:"1 tsp",w:5,c:45,p:0,cb:0,f:5,fi:0,su:0,so:0,av:false,tip:"Use sparingly — 1 tsp max per day on roti",alt:""},
+  "coconut chutney":{n:"Coconut Chutney",s:"2 tbsp",w:30,c:55,p:1,cb:4,f:4,fi:1,su:1,so:120,av:false,tip:"OK in small amounts — limit to 2 tbsp",alt:"Tomato chutney for less fat"},
+  "papad":{n:"Papad (Roasted)",s:"1 piece",w:10,c:35,p:2,cb:5,f:1,fi:1,su:0,so:300,av:false,tip:"Roasted is fine — avoid fried papad",alt:""},
+};
+
+function findNutrition(query){
+  const q = query.toLowerCase().trim();
+  // Direct match
+  if(NUTRITION_DB[q]) return NUTRITION_DB[q];
+  // Partial match
+  for(const key of Object.keys(NUTRITION_DB)){
+    if(q.includes(key) || key.includes(q)) return NUTRITION_DB[key];
+  }
+  // Word match
+  const words = q.split(/\s+/);
+  for(const key of Object.keys(NUTRITION_DB)){
+    if(words.some(w=>w.length>2 && key.includes(w))) return NUTRITION_DB[key];
+  }
+  // Also check ALL_FOODS
+  const food = ALL_FOODS.find(f=>f.name.toLowerCase().includes(q)||q.includes(f.name.toLowerCase().split(" ")[0]));
+  if(food){
+    return {
+      n:food.name, s:food.qty, w:food.weight, c:food.kcal,
+      p:food.protein||0, cb:food.carbs||0, f:food.fat||0,
+      fi:1, su:0, so:200,
+      av: AVOID_FOODS[food.id]?true:false,
+      tip: AVOID_FOODS[food.id]?AVOID_FOODS[food.id]:"Part of a balanced Indian diet",
+      alt: AVOID_FOODS[food.id]?"Choose a healthier option":""
+    };
+  }
+  return null;
+}
+
+function runAISearch(){
+  const q = state.searchQuery.trim();
+  if(!q){ showToast("⚠ Please type a food name first"); return; }
+  const el = document.getElementById("searchResults");
+  if(!el) return;
+
+  const result = findNutrition(q);
+  if(result){
+    state.aiResult = {
+      name: result.n,
+      serving: result.s,
+      weight_g: result.w,
+      calories: result.c,
+      protein_g: result.p,
+      carbs_g: result.cb,
+      fat_g: result.f,
+      fiber_g: result.fi,
+      sugar_g: result.su,
+      sodium_mg: result.so,
+      avoid: result.av,
+      avoid_reason: result.av ? result.tip : "",
+      health_note: result.av ? "" : result.tip,
+      better_alternative: result.alt||""
+    };
+    renderAIResult(state.aiResult);
+  } else {
+    // Fallback — search the fixed database
+    const dbResults = searchFoods(q);
+    if(dbResults.length>0){
+      const f = dbResults[0];
+      state.aiResult = {
+        name: f.name, serving: f.qty, weight_g: f.weight,
+        calories: f.kcal, protein_g: f.protein||0,
+        carbs_g: f.carbs||0, fat_g: f.fat||0,
+        fiber_g: 2, sugar_g: 2, sodium_mg: 300,
+        avoid: AVOID_FOODS[f.id]?true:false,
+        avoid_reason: AVOID_FOODS[f.id]||"",
+        health_note: "Part of a balanced Indian diet",
+        better_alternative: ""
+      };
+      renderAIResult(state.aiResult);
+    } else {
+      el.innerHTML=`<div style="padding:16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🤔</div>
+        <div style="font-size:13px;color:#fbbf24;font-weight:700;margin-bottom:6px">Food not found in database</div>
+        <div style="font-size:11px;color:#78a8b8;margin-bottom:12px">Try switching to 📋 Database tab and browse by category</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+          ${["idli","rice","chicken","dal","banana","oats"].map(s=>`<button class="chip" onclick="state.searchQuery='${s}';document.getElementById('searchInp').value='${s}';runAISearch()">${s}</button>`).join("")}
+        </div>
+      </div>`;
+    }
+  }
+}
+
+function renderAIResult(r){
+  const el = document.getElementById("searchResults");
+  if(!el) return;
+  const avoid = r.avoid||false;
+  el.innerHTML=`
+  <div style="border-radius:12px;padding:14px;margin-bottom:10px;background:${avoid?'rgba(239,68,68,.08)':'rgba(0,191,165,.08)'};border:1px solid ${avoid?'rgba(239,68,68,.3)':'rgba(0,191,165,.3)'}">
+
+    ${avoid?`<div style="font-size:11px;color:#f87171;font-weight:700;padding:5px 9px;background:rgba(239,68,68,.15);border-radius:6px;margin-bottom:9px">🚫 Avoid: ${r.avoid_reason}</div>`:''}
+
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:${avoid?'#fca5a5':'#e8f4f8'}">${r.name}${avoid?' 🚫':' ✅'}</div>
+        <div style="font-size:11px;color:#78a8b8;margin-top:2px">Per serving: ${r.serving} · ${r.weight_g}g</div>
+      </div>
+      <div style="text-align:center;flex-shrink:0;margin-left:12px">
+        <div style="font-size:26px;font-weight:800;color:${avoid?'#f87171':'#00bfa5'}">${r.calories}</div>
+        <div style="font-size:10px;color:#78a8b8">kcal</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px">
+      <div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:16px;font-weight:800;color:#34d399">${r.protein_g}g</div>
+        <div style="font-size:10px;color:#78a8b8">Protein</div>
+      </div>
+      <div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:16px;font-weight:800;color:#fbbf24">${r.carbs_g}g</div>
+        <div style="font-size:10px;color:#78a8b8">Carbs</div>
+      </div>
+      <div style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:16px;font-weight:800;color:#a78bfa">${r.fat_g}g</div>
+        <div style="font-size:10px;color:#78a8b8">Fat</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;font-size:11px;color:#78a8b8;margin-bottom:10px;flex-wrap:wrap">
+      <span>🌾 Fibre: <strong style="color:#e8f4f8">${r.fiber_g}g</strong></span>
+      <span>🍬 Sugar: <strong style="color:#e8f4f8">${r.sugar_g}g</strong></span>
+      <span>🧂 Sodium: <strong style="color:#e8f4f8">${r.sodium_mg}mg</strong></span>
+    </div>
+
+    ${r.health_note?`<div style="font-size:11px;color:#80cbc4;padding:7px 10px;background:rgba(0,109,119,.15);border-radius:7px;margin-bottom:8px">💡 ${r.health_note}</div>`:''}
+    ${r.better_alternative?`<div style="font-size:11px;color:#fbbf24;padding:7px 10px;background:rgba(251,191,36,.08);border-radius:7px;margin-bottom:8px">✨ Better choice: ${r.better_alternative}</div>`:''}
+
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">
+      <div class="qty-ctrl">
+        <button onclick="aiChangeQty(-0.5)">−</button>
+        <span id="aiQty">1×</span>
+        <button onclick="aiChangeQty(0.5)">+</button>
+      </div>
+      <select class="inp" style="flex:1;font-size:11px;padding:5px 8px" onchange="state.selectedSlot=this.value">
+        ${MEAL_SLOTS.map(s=>`<option value="${s.key}"${state.selectedSlot===s.key?" selected":""}>${s.emoji} ${s.label}</option>`).join("")}
+      </select>
+      <button class="btn ${avoid?'btn-gray':'btn-teal'}" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="addAIFood()">+ Add</button>
+    </div>
+  </div>`;
+}
+
+let aiQty = 1;
+function aiChangeQty(delta){
+  aiQty = Math.max(0.5, +(aiQty+delta).toFixed(1));
+  const el = document.getElementById("aiQty");
+  if(el) el.textContent = aiQty+"×";
+}
+
+function addAIFood(){
+  const r = state.aiResult;
+  if(!r) return;
+  addFood({
+    id: "ai_"+Date.now(),
+    name: r.name,
+    qty: r.serving,
+    weight: r.weight_g,
+    unit: "g",
+    kcal: Math.round(r.calories * aiQty),
+    protein: +(r.protein_g * aiQty).toFixed(1),
+    carbs: +(r.carbs_g * aiQty).toFixed(1),
+    fat: +(r.fat_g * aiQty).toFixed(1),
+  }, state.selectedSlot, aiQty);
+  aiQty = 1;
 }
 
 // ── RENDER ────────────────────────────────────────────────────────
@@ -612,7 +937,12 @@ function render(){
             <div style="font-size:12px"><span style="font-weight:800;color:${over?"#ef4444":kcal>0?"#00bfa5":"#446070"}">${kcal}</span><span style="color:#446070"> / ${slot.minKcal}–${slot.maxKcal} kcal</span></div>
           </div>
           <div class="pbar" style="height:4px"><div class="pfill" style="width:${pct}%;background:${barColor}"></div></div>
-          ${kcal===0?`<div style="font-size:10px;color:#2d4a5a;margin-top:2px">${slot.tip}</div>`:""}
+          ${kcal===0?`<div style="font-size:10px;color:#a0c4d0;margin-top:2px;font-style:italic">💡 ${slot.tip}</div>`:""}
+          <div style="font-size:10px;margin-top:3px;display:flex;gap:6px">
+            <span style="color:#34d399">P:${slot.protein}</span>
+            <span style="color:#fbbf24">C:${slot.carbs}</span>
+            <span style="color:#a78bfa">F:${slot.fat}</span>
+          </div>
           ${over?`<div style="font-size:10px;color:#ef4444;margin-top:2px">⚠ ${kcal-slot.maxKcal} kcal over max</div>`:""}
         </div>`;
       }).join("")}
@@ -648,10 +978,16 @@ function render(){
           <div style="text-align:right"><span style="font-size:13px;font-weight:800;color:${over?"#ef4444":kcal>0?"#00bfa5":"#446070"}">${kcal}</span><span style="font-size:11px;color:#446070"> / ${slot.defaultKcal}</span></div>
         </div>
         <div class="pbar" style="height:5px;margin-bottom:4px"><div class="pfill" style="width:${pct}%;background:${barColor}"></div></div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:#2d4a5a;margin-bottom:5px">
-          <span>Min:${slot.minKcal}</span>
-          <span style="color:${over?"#ef4444":under?"#f59e0b":"#446070"};font-weight:600">${over?`⚠ ${kcal-slot.maxKcal} over`:under?`↑ eat ${slot.minKcal-kcal} more`:kcal>0?"✓ On target":slot.tip}</span>
-          <span>Max:${slot.maxKcal}</span>
+        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px">
+          <span style="color:#8ab4c4">Min:${slot.minKcal}</span>
+          <span style="color:${over?"#ef4444":under?"#f59e0b":"#8ab4c4"};font-weight:600">${over?`⚠ ${kcal-slot.maxKcal} over`:under?`↑ eat ${slot.minKcal-kcal} more`:kcal>0?"✓ On target":""}</span>
+          <span style="color:#8ab4c4">Max:${slot.maxKcal}</span>
+        </div>
+        <div style="font-size:11px;color:#a0c4d0;margin-bottom:5px;font-style:italic">💡 ${slot.tip}</div>
+        <div style="display:flex;gap:8px;font-size:10px;margin-bottom:6px;background:rgba(0,109,119,.15);border-radius:6px;padding:5px 8px">
+          <span>🥩 P: <strong style="color:#34d399">${slot.protein}</strong></span>
+          <span>🌾 C: <strong style="color:#fbbf24">${slot.carbs}</strong></span>
+          <span>🫒 F: <strong style="color:#a78bfa">${slot.fat}</strong></span>
         </div>
         ${foods.map(f=>`
           <div class="food-item">
@@ -664,7 +1000,7 @@ function render(){
             <button class="remove-btn" onclick="removeFood('${slot.key}','${f.uid}')">✕</button>
           </div>
         `).join("")}
-        ${foods.length===0?`<div style="font-size:11px;color:#2d4a5a;font-style:italic">No food logged yet</div>`:""}
+        ${foods.length===0?`<div style="font-size:11px;color:#8ab4c4;font-style:italic">No food logged yet</div>`:""}
       </div>`;
     }).join("");
 
@@ -694,32 +1030,48 @@ function render(){
   }
 
   else if(state.activeTab==="search"){
+    const aiActive = state.searchMode!=="db";
     html+=`
     <div class="card">
-      <div class="card-title">🔍 Food Search</div>
-      <div style="font-size:11px;color:#78a8b8;margin-bottom:10px">Search 90+ foods. Adjust qty and meal, then tap + Add.</div>
+      <div class="card-title">🤖 AI Nutrition Search</div>
+      <div style="font-size:11px;color:#78a8b8;margin-bottom:10px">Switch between AI search (any food) or browse our food database.</div>
+
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button id="btnAI" class="btn btn-full" style="flex:1;padding:9px;font-size:12px;background:${aiActive?'linear-gradient(135deg,#7c3aed,#6d28d9)':'rgba(255,255,255,.08)'};border:1px solid ${aiActive?'#7c3aed':'rgba(255,255,255,.2)'}" onclick="switchSearchMode('ai')">🤖 AI Search</button>
+        <button id="btnDB" class="btn btn-full" style="flex:1;padding:9px;font-size:12px;background:${!aiActive?'linear-gradient(135deg,#006d77,#00897b)':'rgba(255,255,255,.08)'};border:1px solid ${!aiActive?'#006d77':'rgba(255,255,255,.2)'}" onclick="switchSearchMode('db')">📋 Database</button>
+      </div>
+
       <div class="search-wrap" style="margin-bottom:10px">
-        <span class="search-icon">🔍</span>
-        <input class="inp search-inp" id="searchInp" placeholder="Type food name… e.g. idli, apple, chicken" value="${state.searchQuery}" oninput="handleSearchInput(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <span class="search-icon">${aiActive?'🤖':'🔍'}</span>
+        <input class="inp search-inp" id="searchInp"
+          placeholder="${aiActive?'Type any food… e.g. 2 idli with sambar':'Type food name… e.g. idli, chicken'}"
+          value="${state.searchQuery}"
+          oninput="handleSearchInput(this.value)"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         <button class="clear-btn" id="searchClearBtn" onclick="clearSearch()" style="display:${state.searchQuery?'inline':'none'}">✕</button>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <span style="font-size:11px;color:#78a8b8;flex-shrink:0">Add to:</span>
         <select class="inp" style="flex:1;font-size:12px;padding:6px 10px" onchange="state.selectedSlot=this.value">
           ${MEAL_SLOTS.map(s=>`<option value="${s.key}"${state.selectedSlot===s.key?" selected":""}>${s.emoji} ${s.label} (${s.time})</option>`).join("")}
         </select>
       </div>
-      ${!state.searchQuery?`
-        <div style="font-size:11px;color:#446070;margin-bottom:6px">Quick browse:</div>
+
+      ${aiActive?`
+        <button class="btn btn-purple btn-full" id="aiSearchBtn" onclick="runAISearch()" style="margin-bottom:10px;padding:11px">🤖 Get AI Nutrition Info</button>
+      `:`
+        <div style="font-size:11px;color:#8ab4c4;margin-bottom:6px">Quick browse by category:</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          ${["breakfast","lunch","snack","nonveg","drink","fruit","fastfood","sweet"].map(cat=>`
-            <button class="chip" onclick="state.searchQuery='${cat}';render()">${cat.charAt(0).toUpperCase()+cat.slice(1)}</button>
-          `).join("")}
+          ${["breakfast","lunch","snack","nonveg","drink","fruit","fastfood","sweet"].map(cat=>
+            `<button class="chip" onclick="dbBrowse('${cat}')">${cat.charAt(0).toUpperCase()+cat.slice(1)}</button>`
+          ).join("")}
         </div>
-      `:""}
+      `}
+
       <div id="searchResults"></div>
     </div>`;
-    setTimeout(()=>renderSearchResults(), 0);
+    setTimeout(()=>{ if(state.searchMode==="db") renderSearchResults(); }, 0);
   }
 
   else if(state.activeTab==="exercise"){
@@ -756,91 +1108,235 @@ function render(){
 
   else if(state.activeTab==="progress"){
     const weekDates=getWeekDates();
+    const todayKey=getTodayKey();
+
+    // Sub-tab state
+    if(!state.progressTab) state.progressTab="weekly";
+
     const wtVals=weekDates.map(d=>(state.data[d]||{}).weight).filter(Boolean);
     const maxWt=wtVals.length?Math.max(...wtVals)+1:86;
     const minWt=wtVals.length?Math.min(...wtVals)-1:70;
     const range=maxWt-minWt||5;
 
+    // Get all logged dates sorted
+    const allDates = Object.keys(state.data).sort();
+
+    // Monthly grouping
+    function getMonthDates(year, month){
+      return allDates.filter(d=>d.startsWith(`${year}-${String(month).padStart(2,'0')}`));
+    }
+    function getMonthSummary(dates){
+      let totalKcal=0,totalDays=0,totalEx=0,totalWater=0,weights=[];
+      dates.forEach(d=>{
+        const day=state.data[d]||{};
+        const kcal=Object.values(day.mealFoods||{}).flat().reduce((s,f)=>s+(f.kcal||0),0);
+        if(kcal>0){ totalKcal+=kcal; totalDays++; }
+        totalEx+=Object.values(day.exercises||{}).filter(Boolean).length;
+        totalWater+=(day.water||0);
+        if(day.weight) weights.push(day.weight);
+      });
+      return {totalKcal,totalDays,totalEx,totalWater,weights,avgKcal:totalDays?Math.round(totalKcal/totalDays):0};
+    }
+
+    // Get unique months from data
+    const months = [...new Set(allDates.map(d=>d.slice(0,7)))].sort().reverse().slice(0,6);
+
     html+=`
-    <div class="card">
-      <div class="card-title">⚖️ Weight (7 Days)</div>
-      <div class="bar-chart">
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="btn btn-full" style="flex:1;padding:9px;font-size:12px;background:${state.progressTab==='weekly'?'linear-gradient(135deg,#006d77,#00897b)':'rgba(255,255,255,.08)'};border:1px solid ${state.progressTab==='weekly'?'#006d77':'rgba(255,255,255,.2)'}" onclick="state.progressTab='weekly';render()">📅 Weekly</button>
+      <button class="btn btn-full" style="flex:1;padding:9px;font-size:12px;background:${state.progressTab==='monthly'?'linear-gradient(135deg,#7c3aed,#6d28d9)':'rgba(255,255,255,.08)'};border:1px solid ${state.progressTab==='monthly'?'#7c3aed':'rgba(255,255,255,.2)'}" onclick="state.progressTab='monthly';render()">📆 Monthly</button>
+      <button class="btn btn-full" style="flex:1;padding:9px;font-size:12px;background:${state.progressTab==='goals'?'linear-gradient(135deg,#d97706,#b45309)':'rgba(255,255,255,.08)'};border:1px solid ${state.progressTab==='goals'?'#d97706':'rgba(255,255,255,.2)'}" onclick="state.progressTab='goals';render()">🎯 Goals</button>
+    </div>`;
+
+    // ── WEEKLY TAB ──
+    if(state.progressTab==="weekly"){
+      html+=`
+      <div class="card">
+        <div class="card-title">⚖️ Weight This Week</div>
+        <div class="bar-chart">
+          ${weekDates.map(date=>{
+            const w=(state.data[date]||{}).weight;
+            const pct=w?((w-minWt)/range)*70+10:0;
+            const isToday=date===todayKey;
+            return `
+            <div class="bar-col">
+              ${w?`<div class="bar-val">${w}</div>`:"<div class='bar-val'>-</div>"}
+              <div class="bar-track"><div class="bar-fill" style="height:${w?pct:3}%;background:${isToday?"#006d77":"#00bfa566"}"></div></div>
+              <div class="bar-day">${new Date(date+"T12:00:00").toLocaleDateString("en",{weekday:"short"})}</div>
+            </div>`;
+          }).join("")}
+        </div>
+        ${wtVals.length>=2?`<div style="font-size:11px;color:#78a8b8;text-align:center;margin-top:4px">
+          Week change: <strong style="color:${wtVals[wtVals.length-1]-wtVals[0]<0?'#34d399':'#f87171'}">${(wtVals[wtVals.length-1]-wtVals[0]).toFixed(1)} kg</strong>
+        </div>`:""}
+      </div>
+
+      <div class="card">
+        <div class="card-title">📅 This Week's Log</div>
         ${weekDates.map(date=>{
-          const w=(state.data[date]||{}).weight;
-          const pct=w?((w-minWt)/range)*70+10:0;
+          const d=state.data[date]||{};
+          const foods=Object.values(d.mealFoods||{}).flat().length;
+          const kcal=Object.values(d.mealFoods||{}).flat().reduce((s,f)=>s+(f.kcal||0),0);
+          const ex=Object.values(d.exercises||{}).filter(Boolean).length;
+          const water=(d.water||0)*250;
           const isToday=date===todayKey;
+          const onTarget=kcal>=1600&&kcal<=1800;
           return `
-          <div class="bar-col">
-            ${w?`<div class="bar-val">${w}</div>`:"<div class='bar-val'></div>"}
-            <div class="bar-track"><div class="bar-fill" style="height:${w?pct:3}%;background:${isToday?"#006d77":"#00bfa566"}"></div></div>
-            <div class="bar-day">${new Date(date+"T12:00:00").toLocaleDateString("en",{weekday:"short"})}</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:8px;margin-bottom:4px;background:${isToday?"rgba(0,109,119,.15)":"rgba(255,255,255,.03)"}">
+            <div style="width:48px;font-size:11px;font-weight:${isToday?700:400};color:${isToday?"#80cbc4":"#78a8b8"}">
+              ${isToday?"Today":new Date(date+"T12:00:00").toLocaleDateString("en",{weekday:"short",day:"numeric"})}
+            </div>
+            <div style="flex:1">
+              <div style="display:flex;gap:7px;font-size:11px;flex-wrap:wrap">
+                <span title="Foods logged">🍽️ ${foods}</span>
+                ${kcal>0?`<span style="color:${onTarget?'#34d399':'#f59e0b'}" title="Calories">🔥 ${kcal}</span>`:`<span style="color:#446070">🔥 —</span>`}
+                <span title="Exercise">🏃 ${ex}</span>
+                <span title="Water">💧 ${water}ml</span>
+                ${d.weight?`<span title="Weight">⚖️ ${d.weight}kg</span>`:""}
+              </div>
+            </div>
+            <div style="display:flex;gap:3px">
+              ${[foods>=3,ex>=1,(d.water||0)>=8,kcal>=1600&&kcal<=1900].map(done=>`<div class="dot" style="background:${done?"#00bfa5":"#1a3545"}"></div>`).join("")}
+            </div>
           </div>`;
         }).join("")}
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📅 7-Day Log</div>
-      ${weekDates.map(date=>{
-        const d=state.data[date]||{};
-        const foods=Object.values(d.mealFoods||{}).flat().length;
-        const kcal=Object.values(d.mealFoods||{}).flat().reduce((s,f)=>s+(f.kcal||0),0);
-        const ex=Object.values(d.exercises||{}).filter(Boolean).length;
-        const water=(d.water||0)*250;
-        const isToday=date===todayKey;
-        return `
-        <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;margin-bottom:3px;background:${isToday?"rgba(0,109,119,.15)":"transparent"}">
-          <div style="width:46px;font-size:11px;font-weight:${isToday?700:400};color:${isToday?"#80cbc4":"#78a8b8"}">
-            ${isToday?"Today":new Date(date+"T12:00:00").toLocaleDateString("en",{weekday:"short",day:"numeric"})}
-          </div>
-          <div style="flex:1;display:flex;gap:7px;font-size:11px;flex-wrap:wrap">
-            <span>🍽️${foods}</span>
-            ${kcal>0?`<span style="color:#f59e0b">🔥${kcal}</span>`:""}
-            <span>🏃${ex}</span>
-            <span>💧${water}ml</span>
-            ${d.weight?`<span>⚖️${d.weight}kg</span>`:""}
-          </div>
-          <div class="dot-row">
-            ${[foods>=3,ex>=1,(d.water||0)>=8].map(done=>`<div class="dot" style="background:${done?"#00bfa5":"#1a3545"}"></div>`).join("")}
-          </div>
-        </div>`;
-      }).join("")}
-    </div>
-
-    <div class="card">
-      <div class="card-title">🎯 Goals</div>
-      ${[["Target Weight","70–74 kg","⚖️"],["Timeline","~6 months","📅"],["Daily Calories","1,600–1,800 kcal","🔥"],["Expected Loss","0.3–0.5 kg/week","📉"],["Water Daily","2.5–3 litres","💧"]].map(([l,v,e])=>`
-        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px">
-          <span style="color:#78a8b8">${e} ${l}</span>
-          <span style="font-weight:700;color:#80cbc4">${v}</span>
+        <div style="display:flex;gap:12px;font-size:10px;color:#446070;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.05)">
+          <span>🟢 3+ foods</span><span>🟢 exercised</span><span>🟢 8+ glasses</span><span>🟢 on-target kcal</span>
         </div>
-      `).join("")}
-    </div>
+      </div>
 
-    <div class="card" style="border:1px solid rgba(0,191,165,.2);background:rgba(0,191,165,.04)">
-      <div class="card-title" style="color:#00bfa5">💾 Backup Your Logs</div>
-      <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Generate a backup code and save it in your Notes app. Use it to restore your data anytime on any device.</div>
-      <button class="btn btn-teal btn-full" style="margin-bottom:8px" onclick="backupData()">💾 Generate Backup Code</button>
-      <div id="backupSection" style="display:none">
-        <textarea id="backupOutput" class="inp" rows="3" style="font-size:10px;font-family:monospace;margin-bottom:6px;resize:none" readonly></textarea>
+      <div class="card">
+        <div class="card-title">📊 Week Summary</div>
+        ${(()=>{
+          const days=weekDates.filter(d=>Object.values((state.data[d]||{}).mealFoods||{}).flat().length>0);
+          const avgKcal=days.length?Math.round(days.reduce((s,d)=>s+Object.values((state.data[d]||{}).mealFoods||{}).flat().reduce((a,f)=>a+(f.kcal||0),0),0)/days.length):0;
+          const exDays=weekDates.filter(d=>Object.values((state.data[d]||{}).exercises||{}).some(Boolean)).length;
+          const avgWater=Math.round(weekDates.reduce((s,d)=>s+((state.data[d]||{}).water||0),0)/7*250);
+          return `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);border-radius:10px;padding:10px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:#fbbf24">${avgKcal||"—"}</div>
+              <div style="font-size:10px;color:#78a8b8">Avg kcal/day</div>
+              ${avgKcal?`<div style="font-size:9px;color:${avgKcal>=1600&&avgKcal<=1800?'#34d399':'#f87171'};margin-top:2px">${avgKcal>=1600&&avgKcal<=1800?"✓ On target":"⚠ Adjust"}</div>`:""}
+            </div>
+            <div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);border-radius:10px;padding:10px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:#34d399">${exDays}/7</div>
+              <div style="font-size:10px;color:#78a8b8">Exercise days</div>
+              <div style="font-size:9px;color:${exDays>=4?'#34d399':'#f87171'};margin-top:2px">${exDays>=4?"✓ Great!":"Target: 4+"}</div>
+            </div>
+            <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:10px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:#60a5fa">${avgWater||"—"}</div>
+              <div style="font-size:10px;color:#78a8b8">Avg water/day</div>
+              <div style="font-size:9px;color:${avgWater>=2000?'#34d399':'#f87171'};margin-top:2px">${avgWater>=2000?"✓ Hydrated":"Drink more"}</div>
+            </div>
+            <div style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);border-radius:10px;padding:10px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:#a78bfa">${days.length}/7</div>
+              <div style="font-size:10px;color:#78a8b8">Logged days</div>
+              <div style="font-size:9px;color:${days.length>=5?'#34d399':'#f87171'};margin-top:2px">${days.length>=5?"✓ Consistent":"Log daily!"}</div>
+            </div>
+          </div>`;
+        })()}
+      </div>`;
+    }
+
+    // ── MONTHLY TAB ──
+    else if(state.progressTab==="monthly"){
+      if(months.length===0){
+        html+=`<div class="card"><div style="text-align:center;padding:20px;color:#446070;font-size:13px">No monthly data yet.<br>Start logging daily to see monthly progress! 📅</div></div>`;
+      } else {
+        months.forEach(ym=>{
+          const [year,month]=ym.split("-").map(Number);
+          const monthName=new Date(year,month-1,1).toLocaleDateString("en",{month:"long",year:"numeric"});
+          const dates=getMonthDates(year,month);
+          const s=getMonthSummary(dates);
+          const startWt=s.weights[0];
+          const endWt=s.weights[s.weights.length-1];
+          const wtChange=startWt&&endWt?(endWt-startWt).toFixed(1):null;
+
+          html+=`
+          <div class="card" style="border:1px solid rgba(0,109,119,.25)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div class="card-title" style="margin-bottom:0">📆 ${monthName}</div>
+              ${wtChange!==null?`<div style="font-size:13px;font-weight:800;color:${parseFloat(wtChange)<0?'#34d399':'#f87171'}">${parseFloat(wtChange)<0?'↓':'↑'} ${Math.abs(wtChange)} kg</div>`:""}
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+              <div style="background:rgba(251,191,36,.1);border-radius:8px;padding:8px;text-align:center">
+                <div style="font-size:16px;font-weight:800;color:#fbbf24">${s.avgKcal||"—"}</div>
+                <div style="font-size:9px;color:#78a8b8">Avg kcal</div>
+              </div>
+              <div style="background:rgba(52,211,153,.1);border-radius:8px;padding:8px;text-align:center">
+                <div style="font-size:16px;font-weight:800;color:#34d399">${s.totalEx}</div>
+                <div style="font-size:9px;color:#78a8b8">Workouts</div>
+              </div>
+              <div style="background:rgba(96,165,250,.1);border-radius:8px;padding:8px;text-align:center">
+                <div style="font-size:16px;font-weight:800;color:#60a5fa">${s.totalDays}</div>
+                <div style="font-size:9px;color:#78a8b8">Days logged</div>
+              </div>
+            </div>
+
+            ${s.weights.length>=2?`
+            <div style="margin-bottom:8px">
+              <div style="font-size:10px;color:#8ab4c4;margin-bottom:5px">⚖️ Weight trend</div>
+              <div style="display:flex;align-items:flex-end;gap:3px;height:45px">
+                ${s.weights.map((w,i)=>{
+                  const pct=s.weights.length>1?((w-Math.min(...s.weights))/(Math.max(...s.weights)-Math.min(...s.weights)||1))*70+15:50;
+                  return `<div style="flex:1;background:${i===s.weights.length-1?"#006d77":"#00bfa566"};border-radius:3px;height:${pct}%" title="${w}kg"></div>`;
+                }).join("")}
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:#446070;margin-top:3px">
+                <span>Start: ${startWt}kg</span><span>End: ${endWt}kg</span>
+              </div>
+            </div>`:""}
+
+            <div style="font-size:10px;color:#78a8b8">
+              ${dates.length} days recorded · Avg water: ${Math.round(s.totalWater/Math.max(dates.length,1)*250)}ml/day
+              ${s.avgKcal>=1600&&s.avgKcal<=1800?` · <span style="color:#34d399">✓ Calorie target met</span>`:s.avgKcal>0?` · <span style="color:#f87171">⚠ Calorie target missed</span>`:""}
+            </div>
+          </div>`;
+        });
+      }
+    }
+
+    // ── GOALS TAB ──
+    else if(state.progressTab==="goals"){
+      html+=`
+      <div class="card">
+        <div class="card-title">🎯 Your Goals</div>
+        ${[["Target Weight","70–74 kg","⚖️"],["Timeline","~6 months","📅"],["Daily Calories","1,600–1,800 kcal","🔥"],["Expected Loss","0.3–0.5 kg/week","📉"],["Water Daily","2.5–3 litres","💧"]].map(([l,v,e])=>`
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px">
+            <span style="color:#78a8b8">${e} ${l}</span>
+            <span style="font-weight:700;color:#80cbc4">${v}</span>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="card" style="border:1px solid rgba(0,191,165,.2);background:rgba(0,191,165,.04)">
+        <div class="card-title" style="color:#00bfa5">💾 Backup Your Logs</div>
+        <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Generate a backup code and save it in your Notes app.</div>
+        <button class="btn btn-teal btn-full" style="margin-bottom:8px" onclick="backupData()">💾 Generate Backup Code</button>
+        <div id="backupSection" style="display:none">
+          <textarea id="backupOutput" class="inp" rows="3" style="font-size:10px;font-family:monospace;margin-bottom:6px;resize:none" readonly></textarea>
 
 ```
-    <button class="btn btn-green btn-full" onclick="copyBackup()">📋 Copy Backup Code</button>
-    <div style="font-size:10px;color:#446070;margin-top:6px;text-align:center">📌 Save this in Notes app. Use Restore below to bring logs back anytime.</div>
+      <button class="btn btn-green btn-full" onclick="copyBackup()">📋 Copy Backup Code</button>
+      <div style="font-size:10px;color:#446070;margin-top:6px;text-align:center">📌 Save in Notes. Use Restore to bring logs back.</div>
+    </div>
   </div>
-</div>
-<div class="card" style="border:1px solid rgba(139,92,246,.2);background:rgba(139,92,246,.04)">
-  <div class="card-title" style="color:#c4b5fd">🔄 Restore Previous Logs</div>
-  <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Paste your saved backup code below to restore all previous daily logs.</div>
-  <textarea id="restoreInput" class="inp" rows="3" style="font-size:10px;font-family:monospace;margin-bottom:8px;resize:none" placeholder="Paste your backup code here…"></textarea>
-  <button class="btn btn-purple btn-full" onclick="restoreData()">🔄 Restore My Logs</button>
-</div>
-<div class="card">
-  <div class="card-title">📥 Export to Excel</div>
-  <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Download all daily food, exercise, water and weight logs as a CSV file. Open in Excel or Google Sheets.</div>
-  <button class="btn btn-green btn-full" onclick="exportCSV()">📥 Download CSV Log</button>
-  <div style="font-size:10px;color:#2d4a5a;margin-top:7px;text-align:center">Includes all dates · food · calories · macros · water · exercise · weight</div>
-</div>`;
+
+  <div class="card" style="border:1px solid rgba(139,92,246,.2);background:rgba(139,92,246,.04)">
+    <div class="card-title" style="color:#c4b5fd">🔄 Restore Previous Logs</div>
+    <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Paste your saved backup code to restore all logs.</div>
+    <textarea id="restoreInput" class="inp" rows="3" style="font-size:10px;font-family:monospace;margin-bottom:8px;resize:none" placeholder="Paste your backup code here…"></textarea>
+    <button class="btn btn-purple btn-full" onclick="restoreData()">🔄 Restore My Logs</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📥 Export to Excel</div>
+    <div style="font-size:12px;color:#78a8b8;margin-bottom:10px">Download all logs as CSV — open in Excel or Google Sheets.</div>
+    <button class="btn btn-green btn-full" onclick="exportCSV()">📥 Download CSV Log</button>
+  </div>`;
+}
 ```
 
 }
